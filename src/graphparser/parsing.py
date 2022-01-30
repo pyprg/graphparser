@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Parser for input of graph data using a string.
-Copyright (C) 2022  Carsten Laves
+Copyright (C) 2022  pyprg
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ RE_ALL = re.compile(ALL)
 _empty_tuple = ()
 _empty_dict = {}
 
-def make_att_dict(match):
+def _make_att_dict(match):
     """Creates a dict of attribute_name: attribute_value {str: str} from
     an re.Match.
     
@@ -69,7 +69,7 @@ def make_att_dict(match):
     atts = RE_ATTRIBUTE_SEP.split(match.group(0).rstrip(ATTRIBUTE_SEP))
     return dict(RE_KEY_VALUE_SEP.split(att) for att in atts)
 
-def line_attributes(firstmatch):
+def _line_attributes(firstmatch):
     """Extracts attributes (key-value pairs) from a text line.
     
     Parameters
@@ -84,11 +84,11 @@ def line_attributes(firstmatch):
             * int pos_x
             * dict, key->value"""
     start, end = firstmatch.span()
-    yield start, make_att_dict(firstmatch)
+    yield start, _make_att_dict(firstmatch)
     for m in RE_ATTRIBUTES.finditer(firstmatch.string[end:]):
-         yield end + m.span()[0], make_att_dict(m)
+         yield end + m.span()[0], _make_att_dict(m)
          
-def line_entities(firstmatch):
+def _line_entities(firstmatch):
     """Extracts entities (nodes) from a text line.
     
     Parameters
@@ -109,7 +109,7 @@ def line_entities(firstmatch):
         for m2 in RE_ENTITY.finditer(firstmatch.string[firstmatch.span()[1]:]))
     return entities
 
-def scanoneline(oneline):
+def _scanoneline(oneline):
     """Scans one line of a string. Determins the data category
     ::
         'c' - comment
@@ -133,12 +133,12 @@ def scanoneline(oneline):
         if RE_COMMENT.match(m.group()):
             return 'c', None
         if RE_ATTRIBUTES.match(m.group()):
-            return 'a', line_attributes(m)
+            return 'a', _line_attributes(m)
         if RE_ENTITY.match(m.group()):
-            return 'e', line_entities(m)
+            return 'e', _line_entities(m)
     return 'b', m.group()
 
-def scanlines(lines):
+def _scanlines(lines):
     """Scans a sequence (iterable) of strings.
     
     Parameters
@@ -156,7 +156,7 @@ def scanlines(lines):
     entities = None
     atts = list()
     for line in lines:
-        marker, data = scanoneline(line)
+        marker, data = _scanoneline(line)
         if marker == 'b':
             if entities:
                 yield {'entities': entities, 'atts': atts}
@@ -175,7 +175,7 @@ def scanlines(lines):
     if entities:
         yield {'entities': entities, 'atts': atts}
 
-def scanentities(lines):
+def _scanentities(lines):
     """Scans a sequence (iterable) of strings.
     
     Parameters
@@ -193,14 +193,14 @@ def scanentities(lines):
     entities = None
     atts = list()
     for idx, line in enumerate(lines):
-        marker, data = scanoneline(line)
+        marker, data = _scanoneline(line)
         if marker == 'e':
             yield tuple((t[1], (t[0][0], -idx)) for t in data)
     if entities:
         yield {'entities': entities, 'atts': atts}
     
 
-def get_positions(posl, posr, l_connect, r_connect):
+def _get_positions(posl, posr, l_connect, r_connect):
     """Corrects position of start by +1 if not connected at left side,
     end position by -1 if not connected at right side.
     
@@ -221,7 +221,7 @@ def get_positions(posl, posr, l_connect, r_connect):
         int, int (start position, end position)"""
     return posl if l_connect else posl + 1, posr if r_connect else posr - 1
 
-def get_connect(e_id):
+def _get_connect(e_id):
     """Checks if given entity shall be connected to left/right adjacent
     entity.
     
@@ -258,7 +258,7 @@ def strip_id(e_id, l_connect, r_connect):
         # strip one leading and one trailing underscore
         e_id[0 if l_connect else 1:None if r_connect else -1])    
         
-def correct_id_pos(e_id, poss):
+def _correct_id_pos(e_id, poss):
     """Corrects position and strips id in case of leading/trailing underscore
     
     Parameters
@@ -273,12 +273,12 @@ def correct_id_pos(e_id, poss):
     tuple
         * str, ID
         * tuple int, int (start position, end position)"""
-    l_connect, r_connect = get_connect(e_id)
+    l_connect, r_connect = _get_connect(e_id)
     return (
         strip_id(e_id, l_connect, r_connect),
-        get_positions(*poss, l_connect, r_connect))
+        _get_positions(*poss, l_connect, r_connect))
 
-def add_connects(poss, e_id):
+def _add_connects(poss, e_id):
     """Leading/trailing underscore means no connection to left/right.
     The function checks connections, corrects positions and ID.
     
@@ -296,14 +296,14 @@ def add_connects(poss, e_id):
         * str, ID
         * bool, left connection?
         * bool, right connection?"""
-    l_connect, r_connect = get_connect(e_id)
+    l_connect, r_connect = _get_connect(e_id)
     return (
-        get_positions(*poss, l_connect, r_connect), 
+        _get_positions(*poss, l_connect, r_connect), 
         (strip_id(e_id, l_connect, r_connect), 
          l_connect, 
          r_connect))
 
-def neighbourids(infos):
+def _neighbourids(infos):
     """Returns IDs of left/right nodes connected by an edge to current node.
     
     Parameters
@@ -327,12 +327,12 @@ def neighbourids(infos):
         return r_info[0],
     return _empty_tuple
 
-def leftneighbourid(info):
+def _leftneighbourid(info):
     """Returns a tuple of one ID if a left neighbour exists else
     returns an empty tuple."""
     return (info[0],) if info[2] else _empty_tuple
 
-def insert_edges(entities):
+def _insert_edges(entities):
     """Adds edge tuples in the sequence of nodes. '_' on left/right side of ID
     means that node is not connected to left/right neighbour. The function
     does not insert an edge in this case.
@@ -350,11 +350,11 @@ def insert_edges(entities):
         * 'node'|'edge'
         * data of node or edge
         * ..."""
-    pre_poss, pre_info = add_connects(*entities[0])
+    pre_poss, pre_info = _add_connects(*entities[0])
     other_infos = [pre_info]
-    for e_poss, e_info in (add_connects(*e) for e in entities[1:]):
+    for e_poss, e_info in (_add_connects(*e) for e in entities[1:]):
         other_infos.append(e_info)
-        yield pre_poss, 'node', pre_info[0], neighbourids(other_infos)
+        yield pre_poss, 'node', pre_info[0], _neighbourids(other_infos)
         if pre_info[2] and e_info[1]:
             start = pre_poss[1]
             end = e_poss[0]
@@ -365,10 +365,10 @@ def insert_edges(entities):
         pre_poss, 
         'node', 
         pre_info[0], 
-        (leftneighbourid(other_infos[-2]) 
+        (_leftneighbourid(other_infos[-2]) 
          if (pre_info[1] and 1 < len(other_infos)) else _empty_tuple))
 
-def get_collect_atts(atts):
+def _get_collect_atts(atts):
     """Creates a function returning attributes for a given interval of 
     positions (columns).
     
@@ -412,11 +412,11 @@ def get_collect_atts(atts):
             pos, data = next(atts_iter, theend)
     return collect
 
-def merge_dicts(dicta, dictb):
+def _merge_dicts(dicta, dictb):
     """Merge dictb into dicta if dctb exists, return dicta otherwise."""
     return {**dicta, **dictb} if dictb else dicta
 
-def add_atts(sorted_entities, sorted_atts):
+def _add_atts(sorted_entities, sorted_atts):
     """Adds attributes having suitable position to entities (nodes/edges).
     
     Parameters
@@ -432,13 +432,13 @@ def add_atts(sorted_entities, sorted_atts):
     tuple
         ...
         * dict of attributes"""
-    atts = get_collect_atts(sorted_atts)
+    atts = _get_collect_atts(sorted_atts)
     if sorted_entities:
         for e in sorted_entities:
             start, end = e[0]
-            yield *e[1:], reduce(merge_dicts, atts(start, end), _empty_dict)
+            yield *e[1:], reduce(_merge_dicts, atts(start, end), _empty_dict)
 
-def entities_and_atts(mydict):
+def _entities_and_atts(mydict):
     """Extracts 'entities' and 'atts' from mydict. Returns a tuple
     of the obtained values. If any of the keys is not in mydict an empty
     tuple is returned instead.
@@ -541,8 +541,8 @@ def parse_graph(textlines):
     ------
     ValueError"""
     return chain.from_iterable(
-        add_atts(insert_edges(e), sorted(atts, key=_get_start))
-        for e, atts in (entities_and_atts(l) for l in scanlines(textlines)))
+        _add_atts(_insert_edges(e), sorted(atts, key=_get_start))
+        for e, atts in (_entities_and_atts(l) for l in _scanlines(textlines)))
 
 def parse(string):
     """Parses a string of graph data. More help is available at function
@@ -573,8 +573,8 @@ def parse(string):
     return parse_graph(string.split('\n'))
 
 def parse_positions(textlines):
-    """Extracts nodes and position of first characters from iterable
-    of strings.
+    """Extracts nodes and positions of their first characters from iterable
+    of text lines.
     
     Parameters
     ----------
@@ -592,8 +592,8 @@ def parse_positions(textlines):
     ------
     ValueError"""
     return (
-        correct_id_pos(*t)
-        for t in chain.from_iterable(scanentities(textlines)))
+        _correct_id_pos(*t)
+        for t in chain.from_iterable(_scanentities(textlines)))
 
 _sides = set(('l', 'r'))
 
