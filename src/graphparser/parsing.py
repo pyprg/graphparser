@@ -494,13 +494,12 @@ def parse_graph(textlines):
         * 'blank' line
         * comment line
         * node line
-        * property line
+        * attribute line
     'Blank' Line:
         A blank line may contain an arbitrary sequence of non-word-characters.
     Comments:
         A line is a comment if first character is '#'. When '#' is not first
         the line is not a comment. Comments are ignored by the parser.
-        A line is either a comment, a line with node data, a line with 
     Node line:
         A node line defines nodes and adjacent nodes. The parser creates an 
         edge between two nodes. A node is expressed as sequence of word 
@@ -546,7 +545,8 @@ def parse_graph(textlines):
         for e, atts in (entities_and_atts(l) for l in scanlines(textlines)))
 
 def parse(string):
-    """Parses a string of graph data.
+    """Parses a string of graph data. More help is available at function
+    'parse_graph'.
     
     Parameters
     ----------

@@ -40,15 +40,15 @@ running `[*parse(Example_1)]` creates a list of node- and edge-data:
 ```
 
 tuple of node-data:
-0. 'node'
-1. ID (name) of node
-2. tuple of adjacent nodes (IDs of nodes)
-3. dict of attributes
+    0. 'node'
+    1. ID (name) of node
+    2. tuple of adjacent nodes (IDs of nodes)
+    3. dict of attributes
 
 tuple of edge-data:
-0. 'edge'
-1. tuples of adjacent nodes (left_node, right_node)
-2. dict of attributes
+    0. 'edge'
+    1. tuples of adjacent nodes (left_node, right_node)
+    2. dict of attributes
 
 One text line has either data of nodes or data of attributes. The type of 
 the first detected entity is the type of the complete line. Attributes placed
