@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Parser for input of graph data using a string.
-Copyright (C) 2022  pyprg
+Copyright (C) 2022 pyprg
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -10,11 +10,11 @@ the Free Software Foundation, either version 3 of the License, or
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 @author: pyprg
 """
@@ -470,7 +470,7 @@ def parse_graph(textlines):
                   a=10
         a=15      b=30
         n0-------n1----------n2
-                     cn=1-2   a=hallo
+                     cn=1-2   a=hello
             
                   a=30     
         n0-------n3----------n4
@@ -679,5 +679,5 @@ def cuts(schema, devs=_empty_tuple):
         
     Returns
     -------
-    iterable, str (version of schema)"""
+    iterator, str (version of schema)"""
     return (cut(schema, **dev) for dev in devs)
