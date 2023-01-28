@@ -5,7 +5,8 @@ Created on Sun Jan 30 14:02:59 2022
 @author: pyprg
 """
 import unittest
-import src.graphparser.parsing as parsing
+import context
+import graphparser.parsing as parsing
 
 class Parsing(unittest.TestCase):
     
