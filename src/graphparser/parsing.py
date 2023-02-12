@@ -27,6 +27,7 @@ ENTITY_ID = r'\b\w+\b' # word boundary, word characters, word boundary
 ATTRIBUTE_KEY_CLASS = r'\w' # word character
 ATTRIBUTE_KEY = f'{ATTRIBUTE_KEY_CLASS}+' # word characters
 KEY_VALUE_SEP = r'='
+# '\w' - alphanumeric characters and underscore
 ATTRIBUTE_VALUE_CLASS = r'[+\-.\w]'# plus, minus, decimal point, word character
 ATTRIBUTE_VALUE = f'{ATTRIBUTE_VALUE_CLASS}+' 
 ATTRIBUTE_SEP = r' ,' # space, comma
@@ -34,6 +35,11 @@ ATTRIBUTE_SEP = r' ,' # space, comma
 # string versions of regular expressions
 BLANK = r'^([\s\W]*)$'
 COMMENT = r'^#.*$'
+# matches ENTITY_ID if not preceeded by ATTRIBUTE_KEY_CLASS KEY_VALUE_SEP
+# and not followed by KEY_VALUE_SEP ATTRIBUTE_VALUE_CLASS,
+# this means you can use the KEY_VALUE_SEP in lines of nodes but not
+# a single KEY_VALUE_SEP in the first appearance of a node line, otherwise
+# it is an attribute line
 ENTITY = (
     f'(?<!{ATTRIBUTE_KEY_CLASS}{KEY_VALUE_SEP}){ENTITY_ID}'
     f'(?!{KEY_VALUE_SEP}{ATTRIBUTE_VALUE_CLASS})')
@@ -131,7 +137,7 @@ def _scanoneline(oneline):
     m = RE_ALL.search(oneline)
     if m:
         if RE_COMMENT.match(m.group()):
-            return 'c', None
+            return 'c', oneline
         if RE_ATTRIBUTES.match(m.group()):
             return 'a', _line_attributes(m)
         if RE_ENTITY.match(m.group()):
@@ -159,7 +165,7 @@ def _scanlines(lines):
         marker, data = _scanoneline(line)
         if marker == 'b':
             if entities:
-                yield {'entities': entities, 'atts': atts}
+                yield {'entities':entities, 'atts':atts}
             atts = list()
             entities = None
         elif marker == 'a':
@@ -172,8 +178,10 @@ def _scanlines(lines):
                     f"separated by 'blank' lines, processed line: {line}")
                 raise ValueError(msg)
             entities = data
+        elif marker == 'c':
+            yield {'comment':data}
     if entities:
-        yield {'entities': entities, 'atts': atts}
+        yield {'entities':entities, 'atts':atts}
 
 def _scanentities(lines):
     """Scans a sequence (iterable) of strings.
@@ -413,7 +421,7 @@ def _get_collect_atts(atts):
     return collect
 
 def _merge_dicts(dicta, dictb):
-    """Merge dictb into dicta if dctb exists, return dicta otherwise."""
+    """Merges dictb into dicta if dctb exists, returns dicta otherwise."""
     return {**dicta, **dictb} if dictb else dicta
 
 def _add_atts(sorted_entities, sorted_atts):
@@ -437,22 +445,6 @@ def _add_atts(sorted_entities, sorted_atts):
         for e in sorted_entities:
             start, end = e[0]
             yield *e[1:], reduce(_merge_dicts, atts(start, end), _empty_dict)
-
-def _entities_and_atts(mydict):
-    """Extracts 'entities' and 'atts' from mydict. Returns a tuple
-    of the obtained values. If any of the keys is not in mydict an empty
-    tuple is returned instead.
-    
-    Parameters
-    ----------
-    mydict: dict
-    
-    Returns
-    -------
-    tuple"""
-    return (
-        mydict.get('entities', _empty_tuple), 
-        mydict.get('atts', _empty_tuple))
 
 _get_start = itemgetter(0)
 
@@ -490,7 +482,7 @@ def parse_graph(textlines):
             ('node', 'n4', ('n3',), {})
         ]        
     
-    The format has three types of text-lines:
+    The format defines three types of text-lines:
         * 'blank' line
         * comment line
         * node line
@@ -503,7 +495,7 @@ def parse_graph(textlines):
     Node line:
         A node line defines nodes and adjacent nodes. The parser creates an 
         edge between two nodes. A node is expressed as sequence of word 
-        characters (a-zA-Z0-9_), left and right borders are non-word 
+        characters, left and right borders are non-word 
         characters, Leading/trailing underscore ('_') prevents addition of an 
         edge by the parser to the left/right. The leading/trailing
         underscore is not part of the node ID.
@@ -526,7 +518,7 @@ def parse_graph(textlines):
     Returns
     -------
     collections.abc.Iterable
-        * tuple (either 'node' or 'edge'), all values are strings: 
+        * tuple (either 'node', 'edge', or 'comment'), all values are strings: 
             * 'node': 
                 * ('node', 
                   ID, 
@@ -536,13 +528,25 @@ def parse_graph(textlines):
                 * ('edge', 
                   (ID_of_left_node, ID_of_right_node), 
                   dict_of_attributes)
+            * 'comment':
+                * str
     
     Raises
     ------
     ValueError"""
+    def _pieces(entity_atts):
+        """subfunction"""
+        entities = entity_atts.get('entities', _empty_tuple) 
+        atts = entity_atts.get('atts', _empty_tuple)
+        if entities or atts:
+            yield from _add_atts(
+                _insert_edges(entities), sorted(atts, key=_get_start))
+        else:
+            comment = entity_atts.get('comment')
+            if comment:
+                yield 'comment', comment
     return chain.from_iterable(
-        _add_atts(_insert_edges(e), sorted(atts, key=_get_start))
-        for e, atts in (_entities_and_atts(l) for l in _scanlines(textlines)))
+        _pieces(entity_atts) for entity_atts in _scanlines(textlines))
 
 def parse(string):
     """Parses a string of graph data. More help is available at function
@@ -566,6 +570,8 @@ def parse(string):
                 * ('edge', 
                   (ID_of_left_node, ID_of_right_node), 
                   dict_of_attributes)
+            * 'comment':
+                * str
     
     Raises
     ------
@@ -681,3 +687,182 @@ def cuts(schema, devs=_empty_tuple):
     -------
     iterator, str (version of schema)"""
     return (cut(schema, **dev) for dev in devs)
+
+#
+# tuple-pull-parsing
+#
+
+def _tokenize(string, separators=','):
+    """Creates tokens from string. Returned tokens are tuples of
+    token-type (str) and payload (str). Types of tokens are:
+    ::
+        '-' element without attributes
+        '+' element with attributes
+        'a' attributes
+    The function creates tokens for the syntax of comma separatd, named 
+    tuples with named attributes, e.g. 
+    ::
+        'mytuple(a=1, b=(2,a,3). c="zeh"),b(hallo=wach)'.
+    
+    Parameters
+    ----------
+    string: str
+    
+    Yields
+    ------
+    tuple
+        * str, type of token
+        * str, data of token
+    
+    Raises
+    ------
+    ValueError in case of syntax error"""
+    length = len(string)
+    idx = 0
+    start = 0
+    nesting_level = []
+    while idx < length:
+        char = string[idx]
+        if not char.isspace():
+            if char in '[(':
+                if not nesting_level and (start < idx):
+                    type_ = string[start:idx].strip()
+                    if type_:
+                        yield "+", type_
+                    start = idx + 1
+                nesting_level.append(')' if char=='(' else ']')
+            elif char in ')]':
+                if not nesting_level:
+                    raise ValueError(
+                        f'error in \'{string}\' at position {idx} '
+                        f'closing \'{char}\' before opening')
+                else:
+                    expected = nesting_level.pop()
+                    if expected != char:
+                        raise ValueError(
+                            f'error in \'{string}\' at position {idx}; '
+                            f'\'{char}\' before \'{expected}\'')
+                    if not nesting_level:
+                        yield "a", string[start:idx].strip()
+                        start = idx + 1
+            elif char in separators:
+                if not nesting_level:
+                    if start < idx:
+                        type_ = string[start:idx].strip()
+                        if type_:
+                            yield "-", type_
+                    start = idx + 1
+                elif len(nesting_level)==1:
+                    yield "a", string[start:idx].strip()
+                    start = idx + 1
+        idx += 1
+    if start < idx:
+        if not nesting_level:
+            type_ = string[start:idx].strip()
+            if type_:
+                yield "-", type_
+        else:
+            nesting_level.reverse()
+            raise ValueError(
+                f'unexpected end in \'{string}\', missing closing braces '
+                f'\'{"".join(nesting_level)}\'')
+            
+
+RE_SEPARATORS = re.compile(',|;')
+RE_TUPLE = re.compile('^\((?P<values>(\s|\w|[-+\.,;])*)\)$')
+
+def _split_values(string):
+    """Splits a comma separated string if enclosed in braces,
+    return the string otherwise.
+    
+    Parameters
+    ----------
+    string: str
+    
+    Returns
+    -------
+    string or tuple of separated strings"""
+    m = RE_TUPLE.match(string)
+    return (
+        string if m is None else
+        tuple(s for s in RE_SEPARATORS.split(m.group(1)) if s)) 
+
+def _split_kv(att):
+    """Splits a string at '=' character.
+    
+    Parameters
+    ----------
+    att: str
+    
+    Returns
+    -------
+    tuple
+        * str, part left of '='
+        * str or tuple of str, part right of '='
+    
+    Raises
+    ------
+    ValueError if split operation does not result in two parts"""
+    kv = att.split('=')
+    if len(kv) != 2:
+        raise ValueError(
+            'the attribute must have the format \'name=value\' '
+            f'but is \'{att}\'')
+    k, v = kv
+    return k.strip(), _split_values(v.strip())
+
+def _create_attribute_dict(atts):
+    """Creates a dict from a comma separated string.
+    ::
+        'a=25 , b="abc", hallo  =  35, 36=  (1,d , Donald)'
+        is mapped to
+        {'a':'25', 'b':'"abc"', 'hallo':'35', '36':('1','d','Donald')}
+    (The last value is a tuple of strings.)
+    
+    Parameters
+    ----------
+    atts: str
+    
+    Returns
+    -------
+    dict str=>str|tuple<str>
+    
+    Raises
+    ------
+    ValueError if substrings between commas cannot be split 
+    at '=' in two halfs"""
+    return dict(tuple(_split_kv(att) for att in atts))
+
+def _collect_elements(tokens):
+    expected = '-+'
+    name = ''
+    atts = []
+    for type_, content in tokens:
+        if type_ in expected:
+            if type_=='+':
+                expected = 'a'
+                if name:
+                    yield name, _create_attribute_dict(atts)
+                    atts = []
+                name = content
+            elif type_=='a':
+                expected = '-+a'
+                atts.append(content)
+            elif type_=='-':
+                expected = '-+'
+                if name:
+                    yield name, _create_attribute_dict(atts)
+                    atts = []
+                    name = ''
+                yield content, {}
+            else:
+                raise ValueError(f'unknown token \'({type_},{content})\'')
+        else:
+            raise ValueError(f'not expected element \'{content}\'')
+    if name:
+        yield name, _create_attribute_dict(atts)
+
+
+
+# ab = [*collect_elements(tokenize('ab(a=3, b=(15,),c=(3,4), d=28),b'))]
+# print(f'ab: {ab}')
