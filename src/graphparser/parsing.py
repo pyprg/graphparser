@@ -985,83 +985,37 @@ def _collect_tokens(tokens, transitions=_transitions):
                 return
         trans_dict, default_trans = states.get(state_key, default_transitions)
 
-def make_name_and_dict(token_collection):
-    """Converts an instanceo of Tokencollection into a tuple str, dict.
-    This is a convienence function for testing.
-
-    Parameters
-    ----------
-    token_collection : Tokencollection
-
-    Returns
-    -------
-    str
-        name
-    dict
-        str=>str"""
-    return (
-        token_collection.name.content,
-        {att.name.content:tuple(v.content for v in att.values)
-         for att in token_collection.attributes})
-
-def make_elements(token_collections):
-    """Creates an iterable of tuples (str, dict) from collections of tokens"""
-    return (make_name_and_dict(collection) for collection in token_collections)
-
-def parse_params(text):
+def _parse_params(text_lines):
     """Parses a multiline text.
     
     Parameters
     ----------
-    text: str
+    text: iterable
+        str
     
     Yields
     ------
     Tokencollection"""
-    return _collect_tokens(_tokenize(text.split('\n')))
+    return _collect_tokens(_tokenize(text_lines))
 
-def parse_params2(text):
+def parse_params(text_lines):
     """Parses a multiline text.
     
     Parameters
     ----------
-    text: str
+    text: iterable,
+        str
     
     Yields
     ------
     tuple
         * str
         * dict"""
-    return make_elements(parse_params(text))
-
-ab = [*_tokenize(['M(att=(3, 42.0))'])]
-#%%
-
-from collections import namedtuple
-
-Mytest = namedtuple('Mytest', 'att att2')
-Mytest2 = namedtuple('Mytest2', 'att att2 att3')
-Message = namedtuple('Message', 'message level')
-
-
-_converter_def = (
-    [Mytest, ((str, False), (float,True))],
-    [Mytest2, ((float, True), (float,False), (int,True))],
-    [Message, ((str, False), (int,False))])
-
-_converter_data = (
-    {def_[0].__name__:(def_[0], dict(zip(def_[0]._fields,def_[1])))
-     for def_ in _converter_def})
-
-print(_converter_data)
-#%%
-text = (
-    "\n"
-    "Mytest(att=Hallo,att2=17.2),\n"
-    "Mytest2(att=2, att2=(3, 42.0), att3=(19, 29))\n")
-
-ab = [*parse_params2(text)]
-#print(ab)    
+    return (
+        (collection.name.content,
+         {att.name.content:tuple(v.content for v in att.values)
+         for att in collection.attributes}) 
+        for collection in _parse_params(text_lines))
 
 def _convert_values(cls_, value_tokens):
     """Converts values of one attribute to class cls_.
@@ -1124,7 +1078,7 @@ def _convert_att(att_tokens, att_descr):
     return None, att_name, values if is_tuple else values[0]
 
 def _convert(converter_data, msg, token_collection):
-    """Maps token_collectio to objects.
+    """Maps token_collection to objects.
     
     Parameters
     ----------
@@ -1165,6 +1119,35 @@ def _convert(converter_data, msg, token_collection):
              _get_position_hint(token_collection.name)])
         return msg(text, 2)
 
-instances = [_convert(_converter_data, Message, t) for t in parse_params(text)]
+#%%
+ab = [*_tokenize(['M(att=(3, 42.0))'])]
 
-print(instances)    
+from collections import namedtuple
+
+Mytest = namedtuple('Mytest', 'att att2')
+Mytest2 = namedtuple('Mytest2', 'att att2 att3')
+Message = namedtuple('Message', 'message level')
+
+
+_converter_def = (
+    [Mytest, ((str, False), (float,True))],
+    [Mytest2, ((float, True), (float,False), (int,True))],
+    [Message, ((str, False), (int,False))])
+
+_converter_data = (
+    {def_[0].__name__:(def_[0], dict(zip(def_[0]._fields,def_[1])))
+     for def_ in _converter_def})
+
+#print(_converter_data)
+text_lines = (
+    "",
+    "Mytest(att=Hallo,att2=17.2),",
+    "Mytest2(att=2, att2=(3, 42.0), att3=(19, 29))")
+
+ab = [*parse_params(text_lines)]
+#print(ab)    
+
+instances = [_convert(_converter_data, Message, t) 
+             for t in _parse_params(text_lines)]
+
+#print(instances)    

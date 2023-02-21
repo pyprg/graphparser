@@ -8,7 +8,7 @@ import unittest
 import context
 from graphparser.parsing import (
     parse, _tokenize, Token, Tokencollection, Attributetokens, 
-    _collect_tokens, parse_params, parse_params2)
+    _collect_tokens, _parse_params, parse_params)
 
 class Parse(unittest.TestCase):
     
@@ -429,11 +429,11 @@ class Collect_tokens(unittest.TestCase):
 class Parse_params(unittest.TestCase):
      
     def test_two_items(self):
-        text = (
-            "\n"
-            "Mytest(att=val,att2=val),\n"
-            "Mytest2(att20=val, att22=val22)\n")
-        res = [*parse_params(text)]
+        text_lines = (
+            "",
+            "Mytest(att=val,att2=val),",
+            "Mytest2(att20=val, att22=val22)")
+        res = [*_parse_params(text_lines)]
         expected = [
             Tokencollection(
                 Token(
@@ -489,10 +489,10 @@ class Parse_params2(unittest.TestCase):
      
     def test_two_items(self):
         text = (
-            "\n"
-            "Mytest(att=val,att2=val),\n"
-            "Mytest2(att20=val, att22=val22)\n")
-        res = [*parse_params2(text)]
+            "",
+            "Mytest(att=val,att2=val),",
+            "Mytest2(att20=val, att22=val22)")
+        res = [*parse_params(text)]
         expected = [
             ('Mytest', {'att': ('val',), 'att2': ('val',)}), 
             ('Mytest2', {'att20': ('val',), 'att22': ('val22',)})]
@@ -500,8 +500,8 @@ class Parse_params2(unittest.TestCase):
             expected, res, 'two items with attributes')
      
     def test_item_with_tuple_atts(self):
-        text = ("Mytest(att=(a,\"b\",c),att2=('d', 'e'), att3=(12.4, 13))")
-        res = [*parse_params2(text)]
+        text = ("Mytest(att=(a,\"b\",c),att2=('d', 'e'), att3=(12.4, 13))",)
+        res = [*parse_params(text)]
         expected = [
             ('Mytest',
               {'att': ('a', '"b"', 'c'), 
