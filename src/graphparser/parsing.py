@@ -207,7 +207,6 @@ def _scanentities(lines):
             yield tuple((t[1], (t[0][0], -idx)) for t in data)
     if entities:
         yield {'entities': entities, 'atts': atts}
-    
 
 def _get_positions(posl, posr, l_connect, r_connect):
     """Corrects position of start by +1 if not connected at left side,
@@ -694,406 +693,12 @@ def cuts(schema, devs=_empty_tuple):
 # tuple-pull-parsing
 #
 
-def _tokenize(string, separators=','):
-    """Creates tokens from string. Returned tokens are tuples of
-    token-type (str) and payload (str). Types of tokens are:
-    ::
-        '-' element without attributes
-        '+' element with attributes
-        'a' attributes
-    The function creates tokens for the syntax of comma separatd, named 
-    tuples with named attributes, e.g. 
-    ::
-        'mytuple(a=1, b=(2,a,3). c="zeh"),b(hallo=wach)'.
-    
-    Parameters
-    ----------
-    string: str
-    
-    Yields
-    ------
-    tuple
-        * str, type of token
-        * str, data of token
-    
-    Raises
-    ------
-    ValueError in case of syntax error"""
-    length = len(string)
-    idx = 0
-    start = 0
-    nesting_level = []
-    while idx < length:
-        char = string[idx]
-        if not char.isspace():
-            if char in '[(':
-                if not nesting_level and (start < idx):
-                    type_ = string[start:idx].strip()
-                    if type_:
-                        yield "+", type_
-                    start = idx + 1
-                nesting_level.append(')' if char=='(' else ']')
-            elif char in ')]':
-                if not nesting_level:
-                    raise ValueError(
-                        f'error in \'{string}\' at position {idx} '
-                        f'closing \'{char}\' before opening')
-                else:
-                    expected = nesting_level.pop()
-                    if expected != char:
-                        raise ValueError(
-                            f'error in \'{string}\' at position {idx}; '
-                            f'\'{char}\' before \'{expected}\'')
-                    if not nesting_level:
-                        yield "a", string[start:idx].strip()
-                        start = idx + 1
-            elif char in separators:
-                if not nesting_level:
-                    if start < idx:
-                        type_ = string[start:idx].strip()
-                        if type_:
-                            yield "-", type_
-                    start = idx + 1
-                elif len(nesting_level)==1:
-                    yield "a", string[start:idx].strip()
-                    start = idx + 1
-        idx += 1
-    if start < idx:
-        if not nesting_level:
-            type_ = string[start:idx].strip()
-            if type_:
-                yield "-", type_
-        else:
-            nesting_level.reverse()
-            raise ValueError(
-                f'unexpected end in \'{string}\', missing closing braces '
-                f'\'{"".join(nesting_level)}\'')
-            
-
-RE_SEPARATORS = re.compile(',|;')
-RE_TUPLE = re.compile('^\((?P<values>(\s|\w|[-+\.,;])*)\)$')
-
-def _split_values(string):
-    """Splits a comma separated string if enclosed in braces,
-    return the string otherwise.
-    
-    Parameters
-    ----------
-    string: str
-    
-    Returns
-    -------
-    string or tuple of separated strings"""
-    m = RE_TUPLE.match(string)
-    return (
-        string if m is None else
-        tuple(s for s in RE_SEPARATORS.split(m.group(1)) if s)) 
-
-def _split_kv(att):
-    """Splits a string at '=' character.
-    
-    Parameters
-    ----------
-    att: str
-    
-    Returns
-    -------
-    tuple
-        * str, part left of '='
-        * str or tuple of str, part right of '='
-    
-    Raises
-    ------
-    ValueError if split operation does not result in two parts"""
-    kv = att.split('=')
-    if len(kv) != 2:
-        raise ValueError(
-            'the attribute must have the format \'name=value\' '
-            f'but is \'{att}\'')
-    k, v = kv
-    return k.strip(), _split_values(v.strip())
-
-def _create_attribute_dict(atts):
-    """Creates a dict from a comma separated string.
-    ::
-        'a=25 , b="abc", hallo  =  35, 36=  (1,d , Donald)'
-        is mapped to
-        {'a':'25', 'b':'"abc"', 'hallo':'35', '36':('1','d','Donald')}
-    (The last value is a tuple of strings.)
-    
-    Parameters
-    ----------
-    atts: str
-    
-    Returns
-    -------
-    dict str=>str|tuple<str>
-    
-    Raises
-    ------
-    ValueError if substrings between commas cannot be split 
-    at '=' in two halfs"""
-    return dict(tuple(_split_kv(att) for att in atts))
-
-def _collect_elements(tokens):
-    expected = '-+'
-    name = ''
-    atts = []
-    for type_, content in tokens:
-        if type_ in expected:
-            if type_=='+':
-                expected = 'a'
-                if name:
-                    yield name, _create_attribute_dict(atts)
-                    atts = []
-                name = content
-            elif type_=='a':
-                expected = '-+a'
-                atts.append(content)
-            elif type_=='-':
-                expected = '-+'
-                if name:
-                    yield name, _create_attribute_dict(atts)
-                    atts = []
-                    name = ''
-                yield content, {}
-            else:
-                raise ValueError(f'unknown token \'({type_},{content})\'')
-        else:
-            raise ValueError(f'not expected element \'{content}\'')
-    if name:
-        yield name, _create_attribute_dict(atts)
-
-# ab = [*collect_elements(tokenize('ab(a=3, b=(15,),c=(3,4), d=28),b'))]
-# print(f'ab: {ab}')
-
-#%%
-# token indicator, value
-# '+1'/'-1' - nesting level, 
-# 't' - text, 
-# '=' - value separator
-# 'tas' - error, text after space
-
-def _tokenize2(inp, separators=','):
-    """Splits string chars in chunks. Returns tuples of two
-    values: (str - type of token, str - content)
-    Types
-    ::
-        'n' - start of new first level element
-        '+' - increased nesting level, content is int, new level
-        '-' - decreased nesting level, content is int, new level
-        't'  - text, content is str
-        '='  - attribute name, content is str
-        'e'  - error, content is str
-        'u' - error, unexpected character after space, content is str
-    
-    Parameters
-    ----------
-    inp: iterable
-        tuple (int, int, str) - (row, start, text)
-        
-    separators: str
-        separators between entitites, attributes and values
-    
-    Yields
-    ------
-    tuple
-        one off
-        'n': ('n', (int, int))
-        't'|'=': ('t'|'=', str)
-        '-'|'+': ('-'|'+', int)
-        'e'|'u' ('e'|'u', ((int, int), (str, str)))"""
-    # states
-    # 's' - space, 
-    # 't' - text, 
-    # 'ts' - text followed by space/quotation
-    state = 's' 
-    nesting = []
-    text = []
-    quotation = ''
-    for row, start, chars in inp:
-        for idx, char in enumerate(chars[start:]):
-            if quotation:
-                text.append(char)
-                if char==quotation:
-                    yield 't', ''.join(text)
-                    text = []
-                    state = 'ts'
-                    quotation = ''
-            elif char.isspace():
-                state = 's' if state=='s' else 'ts'
-            elif char in '[(':
-                state = 's'
-                if text:
-                    yield 't', ''.join(text)
-                    text = []
-                nesting.append(')' if char=='(' else ']') 
-                yield '+', len(nesting)
-            elif char in ')]':
-                state = 's'
-                if text:
-                    yield 't', ''.join(text)
-                    text = []
-                if not nesting:
-                    yield ('e', ((row, start+idx), 
-                        (chars, f'closing \'{char}\' before opening')))
-                else:
-                    expected = nesting.pop()
-                    if char == expected:
-                        yield '-', len(nesting)
-                    else:
-                        msg = (f'closing \'{char}\' before opening, '
-                            f'expecting closing \'{expected}\'')
-                        yield ('e', ((row, start+idx), (chars, msg)))
-            elif char in separators:
-                state = 's'
-                if text:
-                    yield 't', ''.join(text)
-                    text = []
-            elif char=='=':
-                state = 's'
-                if text:
-                    yield '=', ''.join(text)
-                    text = []
-                else:
-                    yield ('e', ((row, start+idx), 
-                        (chars, 'missing text before \'=\'')))
-            else:
-                if state=='ts':
-                    if text:
-                        yield 't', ''.join(text)
-                        text = []
-                    yield ('u', ((row, start+idx), 
-                        (chars,
-                         f'unexpected character \'{char}\' after space'))) 
-                    if not nesting:
-                        yield 'n', (row, idx + start)
-                if not nesting and state=='s':
-                    yield 'n', (row, idx + start)
-                if char in '"\'':
-                    quotation = char
-                state = 't'
-                text.append(char)
-    if quotation:
-        yield ('e', ((row, start+idx),
-               (chars, f'missing quotation mark(s) \'{quotation}\'')))
-    if text:
-        yield 't', ''.join(text)
-    if nesting:
-        nesting.reverse()
-        msg = (
-            'unexpected end, missing closing bracket(s) '
-            f'\'{"".join(nesting)}\'')
-        yield 'e', ((row, start+idx), (chars, msg))
-
-def _build_elements_from_tokens(tokens):
-    """Builds tuples (str, dict) from tokens.
-    
-    Parameters
-    ----------
-    tokens: tuple
-        'n': ('n', (int, int))
-        't'|'=': ('t'|'=', str)
-        '-'|'+': ('-'|'+', int)
-        'e'|'u' ('e'|'u', ((int, int), (str, str)))
-        
-    Yields
-    ------
-    tuple
-        * str
-        * dict"""
-    level = 0
-    first_level_position = (0,0)
-    first_level_name = None
-    attribute_name = None
-    attributes_values = []
-    attributes = {}
-    state = '_'
-    for type_, token in tokens:
-        if type_ in 'eu':
-            yield 'Message', dict(message=token[1][1], level=2)
-        else:
-            if type_ == 'n':
-                if level:
-                    level = 0
-                    row, col = first_level_position
-                    yield ('Message', 
-                        dict(message='error in text, faulty element'
-                             f' in row {row}, column {col}'))
-                first_level_position = token
-                if first_level_name:
-                    yield first_level_name, attributes
-                    first_level_name = None
-                    attributes = {}
-            elif type_ == 't':
-                if state == 'n':
-                    first_level_name = token
-                elif state == '=':
-                    attributes[attribute_name] = token
-                elif level==2:
-                    attributes_values.append(token)
-            elif type_ == '=':
-                if level==1:
-                    attribute_name = token
-                else:
-                    row, col = first_level_position
-                    yield ('Message', 
-                        dict(message=
-                             'error in text, unexpected attribute, element'
-                             f' in row {row}, column {col}'))
-            elif type_ in '-':
-                level = token
-                if not level:
-                    if first_level_name:
-                        yield first_level_name, attributes
-                        first_level_name = None
-                    else:
-                        row, col = first_level_position
-                        yield ('Message', 
-                            dict(message='error in text, element without name'
-                                 f' is in row {row}, after column {col}'))
-                    attributes = {}
-                elif level == 1:
-                    attributes[attribute_name] = tuple(attributes_values)
-                    attributes_values = []
-            elif type_ in '+':
-                if not state in 't=':
-                    row, col = first_level_position
-                    yield ('Message', 
-                        dict(message='error, unexpected bracket, '
-                            f'error is in row {row} after column {col}'))
-                level = token
-            state = type_
-    if state == 't':
-        if level==0 and first_level_name:
-            yield first_level_name, {}
-    elif state=="=" or 0<level:
-        row, col = first_level_position
-        yield 'Message', dict(
-            message=f'unexpected end in row {row}, column {col}')
-                
-                
-
-#%%
-mystring = """
-#, bla(blu=23), bla2(
-#,  b=42)
-"""
-
-def filter_with_start_value(tokens, start='#,'):
-    return ((row, 2, text[2:]) 
-            for tag, text, row in tokens if text.startswith('#,'))
-    
-def parse_named_tuples(text_lines):
-    return [*text_lines]
-
-text_lines = parse_named_tuples(filter_with_start_value(parse(mystring)))
-
-#print(text_lines)
-
-
-#%%
 import re
+from collections import namedtuple
+Token = namedtuple(
+    'Token', 
+    'type content text row start end', 
+    defaults=('', '', 0, 0, 1))
 
 _tuple_parsing_states = {
     # element
@@ -1102,37 +707,50 @@ _tuple_parsing_states = {
         '\s*(?P<Fe>[^A-Za-z]+)'),
     # after element
     'f': re.compile(
-        '\s*(?P<_e>,)|'
-        '\s*(?P<_a>\()|'
-        '\s*(?P<Ff>[^,\(])'),
+        '(?P<_f>\s+)|'
+        '(?P<_e>,)|'
+        '(?P<_a>\()|'
+        '(?P<Ff>[^,\(])'),
     # attribute
     'a': re.compile(
-        '\s*(?P<aq>[A-Za-z]\w*)|'
-        '\s*(?P<_e>\))|'
-        '\s*(?P<Fa>[^A-Za-z]+)'),
+        '(?P<_a>\s+)|'
+        '(?P<aq>[A-Za-z]\w*)|'
+        '(?P<_e>\))|'
+        '(?P<Fa>[^A-Za-z]+)'),
     # equal sign
     'q': re.compile(
-        '\s*(?P<_v>=)|'
-        '\s*(?P<Fq>[^=]+)'),
+        '(?P<_q>\s+)|'
+        '(?P<_v>=)|'
+        '(?P<Fq>[^=]+)'),
     # value
     'v': re.compile(
-        '\s*(?P<vb>\w+)|'
-        '\s*(?P<v2b>"\w*")|'
-        '\s*(?P<_w>\()|'
-        '\s*(?P<Fv>[^"\(\w])'),
+        '(?P<_v>\s+)|'
+        '(?P<vb>[\.\-+\w]+)|'
+        '(?P<v2b>"[^"]*")|'
+        '(?P<v3b>\'[^\']*\')|'
+        '(?P<_w>\()|'
+        '(?P<Fv>[^"\'\(\.\-+\w])'),
     # after attribute
     'b': re.compile(
-        '\s*(?P<_a>,)|'
-        '\s*(?P<_f>\))|'
-        '\s*(?P<Fb>[^,\)]+)'),
+        '(?P<_b>\s+)|'
+        '(?P<_a>,)|'
+        '(?P<_f>\))|'
+        '(?P<Fb>[^,\)]+)'),
     # values
     'w': re.compile(
-        '\s*(?P<vw>\w+)\s*,|'
-        '\s*(?P<vb>\w+)\s*\)|'
-        '\s*(?P<Fw>\W+)')}
+        '(?P<_w>\s+)|'
+        '(?P<vw>[\.\-+\w]+)\s*,|'
+        '(?P<v2w>"[^"]*")\s*,|'
+        '(?P<v3w>\'[^"]*\')\s*,|'
+        '(?P<vb>[\.\-+\w]+)\s*\)|'
+        '(?P<v2b>"[^"]*")\s*\)|'
+        '(?P<v3b>\'[^"]*\')\s*\)|'
+        '(?P<Fw>[^\.\-+\w]+)')}
 
 def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
     """Creates tokens from text according to defined types and transitions.
+    Yields an error token of type 'E' and stops in case of unrecoverable
+    error.
     
     Parameters
     ----------
@@ -1147,7 +765,17 @@ def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
         is the key for the next regular expression
     start_state: str
         optional, default='e'
-        one character, key in states for the first regular expression"""
+        one character, key in states for the first regular expression
+        
+    Yields
+    ------
+    tuple
+        * [indicator_of_type]|'E' - token, type
+        * str, payload of token
+        * str, processed line of text
+        * int, index of parsed row
+        * int, index of parsed column, start
+        * int, index of parsed column, end"""
     state = start_state
     for row, text_line in enumerate(text):
         start = 0
@@ -1155,26 +783,388 @@ def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
         while start < end:
             pattern = states.get(state)
             if pattern is None:
-                raise RuntimeError(
-                    f'unknown state \'{state}\' '
-                    f'substring to process is \'{text_line[start:]}\' '
-                    f'at position {start}')    
+                msg = f'unknown state \'{state}\' reached'
+                yield Token('E', msg, text_line, row, start, start+1)
+                return
             m = pattern.search(text_line, start)
             if m:
                 try:
                     k, v = next(kv for kv in m.groupdict().items() if kv[1])
                 except StopIteration:
-                    raise RuntimeError(
-                        f'no match in substring \'{text_line[start:]}\' '
-                        f'for state \'{state}\'')
+                    msg = 'no match in state \'{state}\''
+                    yield Token('E', msg, text_line, row, start, start+1)
+                    return
                 column_startstop = m.span()
-                yield k[0], v, (row, column_startstop)
+                yield Token(k[0], v, text_line, row, *column_startstop)
                 state = k[-1]
                 start = column_startstop[1]
             else:
-                raise RuntimeError(
-                    f'error at position {start}, '
-                    f'no match in state \'{state}\'')
+                msg = f'no match in state \'{state}\''
+                yield Token('E', msg, text_line, row, start, start+1)
+                return
 
-text = ['abc ( hallo = "1234" ,', ' b=52)']
-print([*_tokenize(text)])
+# collecting tokens
+
+Tokencollection = namedtuple('Tokencollection', 'name attributes')
+Attributetokens = namedtuple('Attributetokens', 'name values')
+
+Context = namedtuple('Context', 'element attributes')
+
+def _new_collection(context, token):
+    return Context(token, []), None, True
+    
+def _new_attribute(context, token):
+    context.attributes.append(Attributetokens(token, []))
+    return context, None, True
+    
+def _add_value(context, token):
+    context.attributes[-1].values.append(token)
+    return context, None, True
+
+def _issue_collection(context, _):
+    return None, Tokencollection(context.element, context.attributes), True
+
+def _get_position_hint(token):
+    """Creates two lines of text.
+    First row number and token text, then second 
+    line visual position indicator.
+    
+    Parameters
+    ----------
+    token: Token
+    
+    Returns
+    -------
+    str, multiline"""
+    row_str = f'{str(token.row)}:'
+    row_len = len(row_str)
+    return '\n'.join(
+        [f'{row_str}{token.text}', 
+         f'{" "*row_len}{"-"*token.start}{"^"*(token.end-token.start)}'])
+
+def _issue_error(context, token):
+    """Creates an instance of Tokencollection from error tokens"""
+    text_lines = '\n'.join([token.content, _get_position_hint(token)])
+    res = Tokencollection(
+        name = Token(
+            type=token.type, 
+            content='Message',
+            text=token.text,
+            row=token.row,
+            start=token.start,
+            end=token.end),
+        attributes=[
+            Attributetokens(
+                name = Token(
+                    'a', 'message', token.text, 
+                    token.row, token.start, token.end),
+                values = [
+                    Token('v', text_lines, token.text, 
+                          token.row, token.start, token.end)]),
+            Attributetokens(
+                name = Token(
+                    'a', 'level', token.text, 
+                    token.row, token.start, token.end),
+                values = [
+                    Token('v', '2', token.text, 
+                          token.row, token.start, token.end)])])
+    return context, res, True
+
+def _unexpected_token_error(context, token):
+    row_str = f'{str(token.row)}:'
+    row_len = len(row_str)
+    text_lines = '\n'.join(
+        [f'invalid text at this position \'{token.content}\'',
+         f'{row_str}{token.text}', 
+         f'{" "*row_len}{"-"*token.start}{"^"*(token.end-token.start)}'])
+    element = Tokencollection(
+        name = Token(
+            type=token.type, 
+            content='Message',
+            text=token.text,
+            row=token.row,
+            start=token.start,
+            end=token.end),
+        attributes=[
+            Attributetokens(
+                name = Token('a', 'message', token.text,
+                             token.row, token.start, token.end),
+                values = [
+                    Token('v', text_lines, token.text, 
+                          token.row, token.start, token.end)]),
+            Attributetokens(
+                name = Token('a', 'level', token.text,
+                             token.row, token.start, token.end),
+                values = [
+                    Token('v', '2', token.text, 
+                          token.row, token.start, token.end)])])
+    return context, element, True
+
+_unexpected_end_of_stream_error = Tokencollection(
+        Token('E', 'Message'),
+        [Attributetokens(
+            Token('a', 'message'), 
+            [Token('v', 'error, unexpected end of data')]),
+         Attributetokens(
+             Token('a', 'level'), 
+             [Token('v', '2')])])
+
+def _issue_unexpected_end_of_stream_error(context, _):
+    return None, _unexpected_end_of_stream_error, False
+
+def _stop_processing(context, token):
+    return None, None, False
+
+# _transitions is a tuple
+#   * state=>(type_of_token=>(actions, key_of_next_state) 
+#   * type_of_token=>(iterable_of_actions, key_of_next_state)
+#
+# Tokentype 'C' (close == 'end of stream') is needed in all states
+_transitions = ({
+    # elment state
+    'e':(
+        {'_':((),'e'),
+         'e':((_issue_collection, _new_collection), 'e'),
+         'a':((_new_attribute,),'a'),
+         'F':((_issue_error,), 'e'),
+         'E':((_issue_error, _stop_processing), 'E'),
+         'C':((_issue_collection,), '_')},
+        ((_unexpected_token_error,), 'e')),
+    # attribute state
+    'a':(
+        {'_':((),'a'),
+         'v':((_add_value,), 'v'),
+         'F':((_issue_error,), 'a'),
+         'E':((_issue_error, _stop_processing), 'E'),
+         'C':((_issue_unexpected_end_of_stream_error,), '_')},
+        ((_unexpected_token_error,), 'a')),
+    # value state
+    'v':(
+        {'_':((),'v'),
+         'e':((_issue_collection, _new_collection), 'e'),
+         'a':((_new_attribute,),'a'),
+         'v':((_add_value,), 'v'),
+         'F':((_issue_error,), 'v'),
+         'E':((_issue_error, _stop_processing), 'E'),
+         'C':((_issue_collection,), '_')},
+        ((_unexpected_token_error,), 'v'))},
+    # initial state
+    (
+    {'_':((), '_'),
+     'e':((_new_collection,), 'e'),
+     'F':((_issue_error,), '_'),
+     'E':((_issue_error, _stop_processing), 'E'),
+     'C':((), '_')},
+    ((_unexpected_token_error,), '_')))
+
+_close = [Token('C')]
+    
+def _collect_tokens(tokens, transitions=_transitions):
+    """Creates a stream of Tokencollection instances from a stream of tokens.
+    
+    Parameters
+    ----------
+    tokens: iterable
+        Token
+    tansitions: tuple
+        see _transitions
+    
+    Yields
+    ------
+    Tokencollection"""
+    states, default_transitions = transitions
+    trans_dict, default_trans = default_transitions
+    context = None
+    for t in chain(tokens, _close):
+        actions, state_key = trans_dict.get(t.type, default_trans)
+        for action in actions:
+            context, collection, continue_ = action(context, t)
+            if collection:
+                yield collection
+            if not continue_:
+                return
+        trans_dict, default_trans = states.get(state_key, default_transitions)
+
+def make_name_and_dict(token_collection):
+    """Converts an instanceo of Tokencollection into a tuple str, dict.
+    This is a convienence function for testing.
+
+    Parameters
+    ----------
+    token_collection : Tokencollection
+
+    Returns
+    -------
+    str
+        name
+    dict
+        str=>str"""
+    return (
+        token_collection.name.content,
+        {att.name.content:tuple(v.content for v in att.values)
+         for att in token_collection.attributes})
+
+def make_elements(token_collections):
+    """Creates an iterable of tuples (str, dict) from collections of tokens"""
+    return (make_name_and_dict(collection) for collection in token_collections)
+
+def parse_params(text):
+    """Parses a multiline text.
+    
+    Parameters
+    ----------
+    text: str
+    
+    Yields
+    ------
+    Tokencollection"""
+    return _collect_tokens(_tokenize(text.split('\n')))
+
+def parse_params2(text):
+    """Parses a multiline text.
+    
+    Parameters
+    ----------
+    text: str
+    
+    Yields
+    ------
+    tuple
+        * str
+        * dict"""
+    return make_elements(parse_params(text))
+
+ab = [*_tokenize(['M(att=(3, 42.0))'])]
+#%%
+
+from collections import namedtuple
+
+Mytest = namedtuple('Mytest', 'att att2')
+Mytest2 = namedtuple('Mytest2', 'att att2 att3')
+Message = namedtuple('Message', 'message level')
+
+
+_converter_def = (
+    [Mytest, ((str, False), (float,True))],
+    [Mytest2, ((float, True), (float,False), (int,True))],
+    [Message, ((str, False), (int,False))])
+
+_converter_data = (
+    {def_[0].__name__:(def_[0], dict(zip(def_[0]._fields,def_[1])))
+     for def_ in _converter_def})
+
+print(_converter_data)
+#%%
+text = (
+    "\n"
+    "Mytest(att=Hallo,att2=17.2),\n"
+    "Mytest2(att=2, att2=(3, 42.0), att3=(19, 29))\n")
+
+ab = [*parse_params2(text)]
+#print(ab)    
+
+def _convert_values(cls_, value_tokens):
+    """Converts values of one attribute to class cls_.
+    
+    Parameters
+    ----------
+    value_tokens: iterable
+        Token
+    
+    Yields
+    ------
+    instances of cls_
+    
+    Raises
+    ------
+    ValueError"""
+    for token in value_tokens:
+        try:
+            yield cls_(token.content)
+        except ValueError:
+            text = '\n'.join(
+                [f'\'{token.content}\' cannot be converted to {cls_.__name__}',
+                 _get_position_hint(token)])
+            raise ValueError(text)
+
+def _convert_att(att_tokens, att_descr):
+    """Converts tokens of one attribute two accepted type.
+    
+    Parameters
+    ----------
+    att_token: Attributetokens
+    
+    att_descr: tuple
+    
+    Returns
+    -------
+    tuple
+        * str|None, text of error
+        * str|None, attribute name
+        * type according to att_descr|tuple|None, value(s)"""
+    att_name = att_tokens.name.content
+    try:
+        cls_, is_tuple = att_descr[att_name]
+    except KeyError:
+        text = '\n'.join(
+            [f'attribute name not valid \'{att_name}\'',
+             _get_position_hint(att_tokens.name)])
+        return text, None, None
+    value_tokens = att_tokens.values
+    if 1 < len(value_tokens) and not is_tuple:
+        second_value_token = value_tokens[1]
+        text = '\n'.join(
+            [f'just one value is accepted for \'{att_name}\'',
+             _get_position_hint(second_value_token)])
+        return text, None, None
+    try:
+        values = tuple(_convert_values(cls_, value_tokens))
+    except ValueError as ve:
+        return str(ve), None, None
+    return None, att_name, values if is_tuple else values[0]
+
+def _convert(converter_data, msg, token_collection):
+    """Maps token_collectio to objects.
+    
+    Parameters
+    ----------
+    converter_data: dict
+    
+    msg: callable
+        (str, int)->(object) / (text, index_of_row)->(object)
+    token_collection: Tokencollection
+    
+    Returns
+    -------
+    Object according to converter_data"""
+    name_content = token_collection.name.content
+    converter = converter_data.get(name_content)
+    if converter:
+        cls_, att_descr = converter
+        errors = [] # str-instances
+        att_dict = {}
+        for att_tokens in token_collection.attributes:
+            error, key, val = _convert_att(att_tokens, att_descr)
+            if error:
+                errors.append(error)
+            elif key:
+                att_dict[key] = val
+        if errors:
+            return msg('\n'.join(errors), 2)
+        else:
+            try:
+                # create object
+                return cls_(**att_dict)
+            except Exception as ex:
+                text = '\n'.join(
+                    [str(ex), _get_position_hint(token_collection.name)])
+                return msg(text, 2)
+    else:
+        text = '\n'.join(
+            [f'unknow element \'{name_content}\'',
+             _get_position_hint(token_collection.name)])
+        return msg(text, 2)
+
+instances = [_convert(_converter_data, Message, t) for t in parse_params(text)]
+
+print(instances)    

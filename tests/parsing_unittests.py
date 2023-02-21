@@ -6,7 +6,9 @@ Created on Sun Jan 30 14:02:59 2022
 """
 import unittest
 import context
-from graphparser.parsing import parse, _tokenize, _collect_elements
+from graphparser.parsing import (
+    parse, _tokenize, Token, Tokencollection, Attributetokens, 
+    _collect_tokens, parse_params, parse_params2)
 
 class Parse(unittest.TestCase):
     
@@ -83,7 +85,7 @@ class Parse(unittest.TestCase):
 
     def test_comment(self):
         d = '# this is a comment'
-        ex = [('comment', d)]
+        ex = [('comment', d, 0)]
         self.assertEqual([*parse(d)], ex, f"expected {ex}")
 
     def test_ignored_att(self):
@@ -205,131 +207,309 @@ class Tokenize(unittest.TestCase):
 
     def test_element_no_attribute(self):
         self.assertEqual(
-            [*_tokenize('a')], 
-            [('-', 'a')], 
+            [*_tokenize(['a'])], 
+            [Token(type='e', content='a', text='a', row=0, start=0, end=1)], 
             'element without attribute')
         
     def test_element_no_attribute2(self):
         self.assertEqual(
-            [*_tokenize('a,')], 
-            [('-', 'a')], 
+            [*_tokenize(['a,'])], 
+            [Token(type='e', content='a', text='a,', row=0, start=0, end=1),
+             Token(type='_', content=',', text='a,', row=0, start=1, end=2)], 
             'element without attribute')
 
     def test_element_no_attribute3(self):
         self.assertEqual(
-            [*_tokenize('ab')], 
-            [('-', 'ab')], 
+            [*_tokenize(['ab'])], 
+            [Token(type='e', content='ab', text='ab', row=0, start=0, end=2)], 
             'element without attribute')
 
     def test_two_elements_no_attribute(self):
         self.assertEqual(
-            [*_tokenize('a,b')], 
-            [('-', 'a'), ('-', 'b')], 
+            [*_tokenize(['a,b'])], 
+            [Token(type='e', content='a', text='a,b', row=0, start=0, end=1),
+             Token(type='_', content=',', text='a,b', row=0, start=1, end=2),
+             Token(type='e', content='b', text='a,b', row=0, start=2, end=3)], 
             'two element without attribute')
 
     def test_element_empty_attribute(self):
         self.assertEqual(
-            [*_tokenize('ab()')], 
-            [('+', 'ab'), ('a', '')], 
+            [*_tokenize(['ab()'])], 
+            [Token(type='e', content='ab', text='ab()', row=0, start=0, end=2),
+             Token(type='_', content='(', text='ab()', row=0, start=2, end=3),
+             Token(type='_', content=')', text='ab()', row=0, start=3, end=4)], 
             'element with empty attribute')
 
-    def test_element_two_attributes(self):
-        self.assertEqual([*_tokenize('ab(,)')], 
-            [('+', 'ab'), ('a', ''), ('a', '')], 
-            'element with two attributes')
-
-    def test_element_with_attributes(self):
-        self.assertEqual([*_tokenize('ab((,),(,))')], 
-            [('+', 'ab'), ('a', '(,)'), ('a', '(,)')], 
-            'element with attributes')
-
     def test_element_with_quoted_attribute(self):
-        self.assertEqual([*_tokenize(' ab( att = "32") ')], 
-            [('+', 'ab'), ('a', 'att = "32"')], 
+        self.assertEqual([*_tokenize([' ab( att = "32") '])], 
+            [Token('e', 'ab', ' ab( att = "32") ', row=0, start=0, end=3),
+             Token('_', '(', ' ab( att = "32") ', row=0, start=3, end=4),
+             Token('_', ' ', ' ab( att = "32") ', row=0, start=4, end=5),
+             Token('a', 'att', ' ab( att = "32") ', row=0, start=5, end=8),
+             Token('_', ' ', ' ab( att = "32") ', row=0, start=8, end=9),
+             Token('_', '=', ' ab( att = "32") ', row=0, start=9, end=10),
+             Token('_', ' ', ' ab( att = "32") ', row=0, start=10, end=11),
+             Token('v', '"32"', ' ab( att = "32") ', row=0, start=11, end=15),
+             Token('_', ')', ' ab( att = "32") ', row=0, start=15, end=16),
+             Token('_', ' ', ' ab( att = "32") ', row=0, start=16, end=17)], 
             'element with quoted attributes')
 
+    def test_element_invalid_attribute(self):
+        self.assertEqual([*_tokenize(['ab(,)'])], 
+            [Token('e', content='ab', text='ab(,)', row=0, start=0, end=2),
+             Token('_', content='(', text='ab(,)', row=0, start=2, end=3),
+             Token('F', content=',)', text='ab(,)', row=0, start=3, end=5)], 
+            'element with two attributes')
+
     def test_two_elements(self):
-        self.assertEqual([*_tokenize('ab(a=3, b=(15,),c=(3,4), d=28),b')], 
-            [('+', 'ab'), ('a', 'a=3'), ('a', 'b=(15,)'), ('a', 'c=(3,4)'), 
-              ('a', 'd=28'), ('-', 'b')], 
-            'two elements, first with attribute')
+        self.assertEqual([*_tokenize(['ab(a=3, b=(15),c=(3,4), d=28),b'])], 
+            [Token('e', 'ab', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 0, 2),
+             Token('_', '(', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 2, 3),
+             Token('a', 'a', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 3, 4),
+             Token('_', '=', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 4, 5),
+             Token('v', '3', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 5, 6),
+             Token('_', ',', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 6, 7),
+             Token('_', ' ', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 7, 8),
+             Token('a', 'b', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 8, 9),
+             Token('_', '=', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 9, 10),
+             Token('_', '(', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 10, 11),
+             Token('v', '15', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 11, 14),
+             Token('_', ',', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 14, 15),
+             Token('a', 'c', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 15, 16),
+             Token('_', '=', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 16, 17),
+             Token('_', '(', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 17, 18),
+             Token('v', '3', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 18, 20),
+             Token('v', '4', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 20, 22),
+             Token('_', ',', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 22, 23),
+             Token('_', ' ', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 23, 24),
+             Token('a', 'd', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 24, 25),
+             Token('_', '=', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 25, 26),
+             Token('v', '28', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 26, 28),
+             Token('_', ')', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 28, 29),
+             Token('_', ',', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 29, 30),
+             Token('e', 'b', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 30, 31)], 
+            'two elements, first with attributes')
 
-    def test_error_closing_brace(self):
-        with self.assertRaises(ValueError):
-            [*_tokenize('ab(a=3, b=(15,),c)=(3,4), d=28),b')]
-
-    def test_error_closing_brace2(self):
-        with self.assertRaises(ValueError):
-            [*_tokenize('ab(a=3, b=(15,),c=(3,4), d=28)),b')]
-
-    def test_error_missing_closing(self):
-        with self.assertRaises(ValueError):
-            [*_tokenize('ab(a=3, b=(15,),c=(3,4), d=28')]
-            
-
-class Collect_elements(unittest.TestCase):
+class Collect_tokens(unittest.TestCase):
     
     def test_empty(self):
         self.assertEqual(
-            [*_collect_elements([])],
+            [*_collect_tokens([])],
             [], 
-            'no element for no token')
+            'no element when no token')
 
     def test(self):
         self.assertEqual(
-            [*_collect_elements(
-                [('+', 'ab'),
-                 ('a', 'a=3'),
-                 ('a', 'b=(15,)'),
-                 ('a', 'c=(3,4)'),
-                 ('a', 'd=28'),
-                 ('-', 'b')])],
-            [('ab', 
-              {'a': '3', 
-               'b': ('15',), 
-               'c': ('3', '4'), 
-               'd': '28'}), 
-             ('b', {})])
+            [*_collect_tokens([Token('_')])],
+            [], 
+            'no element for token \'_\'')
+
+    def test_token_C(self):
+        """Close token"""
+        self.assertEqual(
+            [*_collect_tokens([Token('C')])],
+            [],
+            'no element for closing token \'C\'')
 
     def test_unknown_token(self):
-        with self.assertRaises(ValueError):
-            [*_collect_elements(
-                [('u', 'ab'),
-                 ('a', 'a=3'),
-                 ('a', 'b=(15,)'),
-                 ('a', 'c=(3,4)'),
-                 ('a', 'd=28'),
-                 ('-', 'b')])]
-            
-    def test_unknown_token2(self):
-        with self.assertRaises(ValueError):
-            [*_collect_elements(
-                [('+', 'ab'),
-                 ('a', 'a=3'),
-                 ('u', 'b=(15,)'),
-                 ('a', 'c=(3,4)'),
-                 ('a', 'd=28'),
-                 ('-', 'b')])]
-            
-    def test_not_expected_token(self):
-        with self.assertRaises(ValueError):
-            [*_collect_elements(
-                [('+', 'ab'),
-                 ('+', 'a=3'),
-                 ('a', 'b=(15,)'),
-                 ('a', 'c=(3,4)'),
-                 ('a', 'd=28'),
-                 ('-', 'b')])]
-            
-    def test_not_expected_token2(self):
-        with self.assertRaises(ValueError):
-            [*_collect_elements(
-                [('-', 'ab'),
-                 ('a', 'a=3'),
-                 ('a', 'b=(15,)'),
-                 ('a', 'c=(3,4)'),
-                 ('a', 'd=28'),
-                 ('-', 'b')])]
+        """unknown token"""
+        self.assertEqual(
+            [*_collect_tokens(
+                [Token('U')])],
+            [Tokencollection(
+                Token('U', 'Message'), 
+                [Attributetokens(
+                    Token('a', 'message'), 
+                    [Token('v', "invalid text at this position ''\n0:\n  ^")]), 
+                 Attributetokens(
+                     Token(type='a', content='level'), 
+                     [Token(type='v', content='2')]) ])])
+
+    def test_token_e(self):
+        """two collections"""
+        self.assertEqual(
+            [*_collect_tokens([Token('e')])],
+            [Tokencollection(Token('e'), [])],
+            'one token collection')
+
+    def test_token_ee(self):
+        """two collections"""
+        self.assertEqual(
+            [*_collect_tokens(
+                [Token('e'), 
+                 Token('e')])],
+            [Tokencollection(Token('e'), []),
+             Tokencollection(Token('e'), [])],
+             'two token collections')
+
+    def test_token_ea(self):
+        """element"""
+        self.assertEqual(
+            [*_collect_tokens(
+                [Token('e'), 
+                 Token('a')])],
+            [Tokencollection(
+                Token('E', 'Message'), 
+                [Attributetokens(
+                    Token('a', 'message'), 
+                    [Token('v', 'error, unexpected end of data')]), 
+                 Attributetokens(
+                     Token('a', 'level'), 
+                     [Token('v', '2')])])],
+            'unexpected end of data')
+
+    def test_token_eav(self):
+        """element with attribute having one value"""
+        self.assertEqual(
+            [*_collect_tokens(
+                [Token('e', 'distance'), 
+                 Token('a', 'length'),
+                 Token('v', '42')])],
+            [Tokencollection(
+                Token('e', 'distance'),
+                [Attributetokens(
+                    Token('a', 'length'), 
+                    [Token('v', '42')])])],
+            'element with attributes having one value')
+
+    def test_token_eavv(self):
+        """element with attribute having two values"""
+        self.assertEqual(
+            [*_collect_tokens(
+                [Token('e', 'distance'), 
+                 Token('a', 'length'),
+                 Token('v', '42'),
+                 Token('v', 'm')])],
+            [Tokencollection(
+                Token('e', 'distance'),
+                [Attributetokens(
+                    Token('a', 'length'), 
+                    [Token('v', '42'),
+                     Token('v', 'm')])])],
+            'element with attributes having two values')
+
+    def test_token_eavvavv(self):
+        """element with attribute having two values"""
+        self.assertEqual(
+            [*_collect_tokens(
+                [Token('e', 'distance'), 
+                 Token('a', 'length'),
+                 Token('v', '42'),
+                 Token('v', 'm'),
+                 Token('a', 'height'),
+                 Token('v', '27'),
+                 Token('v', 'cm')])],
+            [Tokencollection(
+                Token('e', 'distance'),
+                [Attributetokens(
+                    Token('a', 'length'), 
+                    [Token('v', '42'),
+                     Token('v', 'm')]),
+                 Attributetokens(
+                    Token('a', 'height'), 
+                    [Token('v', '27'),
+                     Token('v', 'cm')])])],
+            'element with two attributes each having two values')
+
+    def test_token_E(self):
+        """element with attribute having two values"""
+        self.assertEqual(
+            [*_collect_tokens(
+                [Token('E', 'my error message')])],
+            [Tokencollection(
+                Token(type='E', content='Message'), 
+                [Attributetokens(
+                    Token(type='a', content='message'), 
+                    [Token(type='v', content='my error message\n0:\n  ^')]), 
+                 Attributetokens(
+                    Token(type='a', content='level'), 
+                    [Token(type='v', content='2')])])],
+            'error message')
+
+class Parse_params(unittest.TestCase):
+     
+    def test_two_items(self):
+        text = (
+            "\n"
+            "Mytest(att=val,att2=val),\n"
+            "Mytest2(att20=val, att22=val22)\n")
+        res = [*parse_params(text)]
+        expected = [
+            Tokencollection(
+                Token(
+                    'e', 'Mytest', 
+                    'Mytest(att=val,att2=val),', 
+                    1, 0, 6), 
+                [Attributetokens(
+                    Token(
+                        'a', 'att', 
+                        'Mytest(att=val,att2=val),', 
+                        1, 7, 10), 
+                    [Token(
+                        'v', 'val', 
+                        'Mytest(att=val,att2=val),', 
+                        1, 11, 14)]), 
+                 Attributetokens(
+                    Token(
+                        'a', 'att2', 
+                        'Mytest(att=val,att2=val),', 
+                        1, 15, 19), 
+                    [Token(
+                        'v', 'val', 
+                        'Mytest(att=val,att2=val),', 
+                        1, 20, 23)])]), 
+            Tokencollection(
+                Token(
+                    'e', 'Mytest2', 
+                    'Mytest2(att20=val, att22=val22)', 
+                    2, 0, 7), 
+                [Attributetokens(
+                    Token(
+                        'a', 'att20', 
+                        'Mytest2(att20=val, att22=val22)', 
+                        2, 8, 13), 
+                    [Token(
+                        'v', 'val', 
+                        'Mytest2(att20=val, att22=val22)', 
+                        2, 14, 17)]), 
+                 Attributetokens(
+                     Token(
+                         'a', 'att22', 
+                         'Mytest2(att20=val, att22=val22)', 
+                         2, 19, 24), 
+                     [Token(
+                         'v', 'val22', 
+                         'Mytest2(att20=val, att22=val22)', 
+                         2, 25, 30)]
+                     )])]
+        self.assertEqual(
+            expected, res, 'two items with attributes')
+
+class Parse_params2(unittest.TestCase):
+     
+    def test_two_items(self):
+        text = (
+            "\n"
+            "Mytest(att=val,att2=val),\n"
+            "Mytest2(att20=val, att22=val22)\n")
+        res = [*parse_params2(text)]
+        expected = [
+            ('Mytest', {'att': ('val',), 'att2': ('val',)}), 
+            ('Mytest2', {'att20': ('val',), 'att22': ('val22',)})]
+        self.assertEqual(
+            expected, res, 'two items with attributes')
+     
+    def test_item_with_tuple_atts(self):
+        text = ("Mytest(att=(a,\"b\",c),att2=('d', 'e'), att3=(12.4, 13))")
+        res = [*parse_params2(text)]
+        expected = [
+            ('Mytest',
+              {'att': ('a', '"b"', 'c'), 
+               'att2': ("'d'", "'e'"), 
+               'att3': ('12.4', '13')})]
+        self.assertEqual(
+            expected, res, 'item with tuple attributes')
+
             
 if __name__ == '__main__':
     unittest.main()
