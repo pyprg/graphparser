@@ -703,8 +703,9 @@ Token = namedtuple(
 _tuple_parsing_states = {
     # element
     'e': re.compile(
-        '\s*(?P<ef>[A-Za-z]\w*)|'
-        '\s*(?P<Fe>[^A-Za-z]+)'),
+        '(?P<_e>\s+)|'
+        '(?P<ef>[A-Za-z]\w*)|'
+        '(?P<Fe>[^A-Za-z\s]+)'),
     # after element
     'f': re.compile(
         '(?P<_f>\s+)|'
@@ -716,12 +717,12 @@ _tuple_parsing_states = {
         '(?P<_a>\s+)|'
         '(?P<aq>[A-Za-z]\w*)|'
         '(?P<_e>\))|'
-        '(?P<Fa>[^A-Za-z]+)'),
+        '(?P<Fa>[^A-Za-z\s]+)'),
     # equal sign
     'q': re.compile(
         '(?P<_q>\s+)|'
         '(?P<_v>=)|'
-        '(?P<Fq>[^=]+)'),
+        '(?P<Fq>[^=\s]+)'),
     # value
     'v': re.compile(
         '(?P<_v>\s+)|'
@@ -740,12 +741,10 @@ _tuple_parsing_states = {
     'w': re.compile(
         '(?P<_w>\s+)|'
         '(?P<vw>[\.\-+\w]+)\s*,|'
-        '(?P<v2w>"[^"]*")\s*,|'
-        '(?P<v3w>\'[^"]*\')\s*,|'
+        '(?P<v2w>(?P<br>"|\').*?(?P=br))\s*,|'
         '(?P<vb>[\.\-+\w]+)\s*\)|'
-        '(?P<v2b>"[^"]*")\s*\)|'
-        '(?P<v3b>\'[^"]*\')\s*\)|'
-        '(?P<Fw>[^\.\-+\w]+)')}
+        '(?P<v2b>(?P<qu>"|\').*?(?P=qu))\s*\)|'
+        '(?P<Fw>[^\.\-+\w\'"]+)')}
 
 def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
     """Creates tokens from text according to defined types and transitions.
@@ -836,16 +835,26 @@ def _get_position_hint(token):
     Returns
     -------
     str, multiline"""
-    row_str = f'{str(token.row)}:'
-    row_len = len(row_str)
+    start = token.start
+    prefix = f'{token.row}:{start}:'
+    row_len = len(prefix)
     return '\n'.join(
-        [f'{row_str}{token.text}', 
-         f'{" "*row_len}{"-"*token.start}{"^"*(token.end-token.start)}'])
+        [f'{prefix}{token.text}', 
+         f'{" "*row_len}{"-"*start}{"^"*(token.end-start)}'])
 
-def _issue_error(context, token):
-    """Creates an instance of Tokencollection from error tokens"""
-    text_lines = '\n'.join([token.content, _get_position_hint(token)])
-    res = Tokencollection(
+def _message_collection(text, token):
+    """Creates a Tokencollection for an error message of level==2.
+    
+    Parameters
+    ----------
+    text: str
+        error message
+    token: Token
+    
+    Returns
+    -------
+    Tokencollection"""
+    return Tokencollection(
         name = Token(
             type=token.type, 
             content='Message',
@@ -859,7 +868,7 @@ def _issue_error(context, token):
                     'a', 'message', token.text, 
                     token.row, token.start, token.end),
                 values = [
-                    Token('v', text_lines, token.text, 
+                    Token('v', text, token.text, 
                           token.row, token.start, token.end)]),
             Attributetokens(
                 name = Token(
@@ -868,37 +877,25 @@ def _issue_error(context, token):
                 values = [
                     Token('v', '2', token.text, 
                           token.row, token.start, token.end)])])
-    return context, res, True
 
-def _unexpected_token_error(context, token):
-    row_str = f'{str(token.row)}:'
-    row_len = len(row_str)
-    text_lines = '\n'.join(
-        [f'invalid text at this position \'{token.content}\'',
-         f'{row_str}{token.text}', 
-         f'{" "*row_len}{"-"*token.start}{"^"*(token.end-token.start)}'])
-    element = Tokencollection(
-        name = Token(
-            type=token.type, 
-            content='Message',
-            text=token.text,
-            row=token.row,
-            start=token.start,
-            end=token.end),
-        attributes=[
-            Attributetokens(
-                name = Token('a', 'message', token.text,
-                             token.row, token.start, token.end),
-                values = [
-                    Token('v', text_lines, token.text, 
-                          token.row, token.start, token.end)]),
-            Attributetokens(
-                name = Token('a', 'level', token.text,
-                             token.row, token.start, token.end),
-                values = [
-                    Token('v', '2', token.text, 
-                          token.row, token.start, token.end)])])
-    return context, element, True
+def _error(context, token):
+    """Creates an instance of Tokencollection from error tokens"""
+    text = '\n'.join([token.content, _get_position_hint(token)])
+    return context, _message_collection(text, token), True
+
+def _invalid_character_error(context, token):
+    """Creates an instance of Tokencollection from error tokens"""
+    plural = '' if token.end-token.start < 2 else 's'
+    text = '\n'.join(
+        [f'error: invalid character{plural} \'{token.content}\'', 
+         _get_position_hint(token)])
+    return context, _message_collection(text, token), True
+
+def _invalid_token_error(context, token):
+    text = '\n'.join(
+        [f'error: invalid text \'{token.content}\'',
+         _get_position_hint(token)])
+    return context, _message_collection(text, token), True
 
 _unexpected_end_of_stream_error = Tokencollection(
         Token('E', 'Message'),
@@ -926,36 +923,36 @@ _transitions = ({
         {'_':((),'e'),
          'e':((_issue_collection, _new_collection), 'e'),
          'a':((_new_attribute,),'a'),
-         'F':((_issue_error,), 'e'),
-         'E':((_issue_error, _stop_processing), 'E'),
+         'F':((_invalid_character_error,), 'e'),
+         'E':((_error, _stop_processing), 'E'),
          'C':((_issue_collection,), '_')},
-        ((_unexpected_token_error,), 'e')),
+        ((_invalid_token_error,), 'e')),
     # attribute state
     'a':(
         {'_':((),'a'),
          'v':((_add_value,), 'v'),
-         'F':((_issue_error,), 'a'),
-         'E':((_issue_error, _stop_processing), 'E'),
+         'F':((_invalid_character_error,), 'a'),
+         'E':((_error, _stop_processing), 'E'),
          'C':((_issue_unexpected_end_of_stream_error,), '_')},
-        ((_unexpected_token_error,), 'a')),
+        ((_invalid_token_error,), 'a')),
     # value state
     'v':(
         {'_':((),'v'),
          'e':((_issue_collection, _new_collection), 'e'),
          'a':((_new_attribute,),'a'),
          'v':((_add_value,), 'v'),
-         'F':((_issue_error,), 'v'),
-         'E':((_issue_error, _stop_processing), 'E'),
+         'F':((_invalid_character_error,), 'v'),
+         'E':((_error, _stop_processing), 'E'),
          'C':((_issue_collection,), '_')},
-        ((_unexpected_token_error,), 'v'))},
+        ((_invalid_token_error,), 'v'))},
     # initial state
     (
     {'_':((), '_'),
      'e':((_new_collection,), 'e'),
-     'F':((_issue_error,), '_'),
-     'E':((_issue_error, _stop_processing), 'E'),
+     'F':((_invalid_character_error,), '_'),
+     'E':((_error, _stop_processing), 'E'),
      'C':((), '_')},
-    ((_unexpected_token_error,), '_')))
+    ((_invalid_token_error,), '_')))
 
 _close = [Token('C')]
     
@@ -1077,7 +1074,7 @@ def _convert_att(att_tokens, att_descr):
         return str(ve), None, None
     return None, att_name, values if is_tuple else values[0]
 
-def _convert(converter_data, msg, token_collection):
+def _convert(converter_data, msg_factory, token_collection):
     """Maps token_collection to objects.
     
     Parameters
@@ -1104,7 +1101,7 @@ def _convert(converter_data, msg, token_collection):
             elif key:
                 att_dict[key] = val
         if errors:
-            return msg('\n'.join(errors), 2)
+            return msg_factory('\n'.join(errors), 2)
         else:
             try:
                 # create object
@@ -1112,17 +1109,93 @@ def _convert(converter_data, msg, token_collection):
             except Exception as ex:
                 text = '\n'.join(
                     [str(ex), _get_position_hint(token_collection.name)])
-                return msg(text, 2)
+                return msg_factory(text, 2)
     else:
         text = '\n'.join(
-            [f'unknow element \'{name_content}\'',
+            [f'unknown element \'{name_content}\'',
              _get_position_hint(token_collection.name)])
-        return msg(text, 2)
+        return msg_factory(text, 2)
+
+def read_tuples(converter_data, msg_factory, text_lines):
+    """Parses a text of objects defined in namedtuple-like
+    syntax. Returns the objects according to converter_data.
+    
+    Parameters
+    ----------
+    converter_data: dict
+        str=>(class, str=>(class,bool))
+        classname=>(class, attributename=>(class, is_tuple)),
+        converter_data is created from namedtuples and additional data
+        from function 'make_converter_data'
+    msg_factory: callable
+        function creating an object (str, int)->(object) /
+        (message, level)->(message_object)
+    text_lines: iterable
+        str
+    
+    Returns
+    -------
+    iterator
+        objects"""
+    return (_convert(converter_data, msg_factory, t)
+            for t in _parse_params(text_lines))
+
+def make_converter_data(meta):
+    """Creates a dictionary 
+    classname=>(class, dict(attributename=>(type, is_tuple))).
+    
+    Parameters
+    ----------
+    meta: iterable
+        array_like
+            * class (of namedtuple)
+            * iterable of tuples (str, bool)
+                * str, name of attribute
+                * bool, is_tuple
+        e.g.
+        ::
+            ([Mytest, ((str, False), (float,True))],
+             [Mytest2, ((float, True), (float,False), (int,True))],
+             [Message, ((str, False), (int,False))])
+    
+    Returns
+    -------
+    dict 
+        str=>(class, str=>(str,bool))"""
+    return {def_[0].__name__:(def_[0], dict(zip(def_[0]._fields, def_[1])))
+            for def_ in meta}
 
 #%%
-ab = [*_tokenize(['M(att=(3, 42.0))'])]
+
+
 
 from collections import namedtuple
+Nt0 = namedtuple('Nt0', '')
+Message = namedtuple('Message', 'message level')
+
+tokens = list(_tokenize(['42']))
+#print(tokens)
+
+collections = list(_collect_tokens(tokens))
+
+
+
+_convdata = make_converter_data(
+    [(Message, ((str, False), (int,False)))])
+
+
+
+out = tuple(read_tuples(_convdata, Message, ['42']))
+#%%
+#print(out[0].message)
+
+#%%
+from collections import namedtuple
+
+Nt0 = namedtuple('Nt0', '')
+
+
+
 
 Mytest = namedtuple('Mytest', 'att att2')
 Mytest2 = namedtuple('Mytest2', 'att att2 att3')
@@ -1134,9 +1207,8 @@ _converter_def = (
     [Mytest2, ((float, True), (float,False), (int,True))],
     [Message, ((str, False), (int,False))])
 
-_converter_data = (
-    {def_[0].__name__:(def_[0], dict(zip(def_[0]._fields,def_[1])))
-     for def_ in _converter_def})
+
+_converter_data = make_converter_data(_converter_def)
 
 #print(_converter_data)
 text_lines = (

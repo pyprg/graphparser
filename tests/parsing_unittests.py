@@ -8,7 +8,8 @@ import unittest
 import context
 from graphparser.parsing import (
     parse, _tokenize, Token, Tokencollection, Attributetokens, 
-    _collect_tokens, _parse_params, parse_params)
+    _collect_tokens, _parse_params, parse_params, read_tuples, 
+    make_converter_data)
 
 class Parse(unittest.TestCase):
     
@@ -242,16 +243,17 @@ class Tokenize(unittest.TestCase):
 
     def test_element_with_quoted_attribute(self):
         self.assertEqual([*_tokenize([' ab( att = "32") '])], 
-            [Token('e', 'ab', ' ab( att = "32") ', row=0, start=0, end=3),
-             Token('_', '(', ' ab( att = "32") ', row=0, start=3, end=4),
-             Token('_', ' ', ' ab( att = "32") ', row=0, start=4, end=5),
-             Token('a', 'att', ' ab( att = "32") ', row=0, start=5, end=8),
-             Token('_', ' ', ' ab( att = "32") ', row=0, start=8, end=9),
-             Token('_', '=', ' ab( att = "32") ', row=0, start=9, end=10),
-             Token('_', ' ', ' ab( att = "32") ', row=0, start=10, end=11),
-             Token('v', '"32"', ' ab( att = "32") ', row=0, start=11, end=15),
-             Token('_', ')', ' ab( att = "32") ', row=0, start=15, end=16),
-             Token('_', ' ', ' ab( att = "32") ', row=0, start=16, end=17)], 
+            [Token('_', ' ', ' ab( att = "32") ', 0, 0, 1),
+             Token('e', 'ab', ' ab( att = "32") ', 0, 1, 3),
+             Token('_', '(', ' ab( att = "32") ', 0, 3, 4),
+             Token('_', ' ', ' ab( att = "32") ', 0, 4, 5),
+             Token('a', 'att', ' ab( att = "32") ', 0, 5, 8),
+             Token('_', ' ', ' ab( att = "32") ', 0, 8, 9),
+             Token('_', '=', ' ab( att = "32") ', 0, 9, 10),
+             Token('_', ' ', ' ab( att = "32") ', 0, 10, 11),
+             Token('v', '"32"', ' ab( att = "32") ', 0, 11, 15),
+             Token('_', ')', ' ab( att = "32") ', 0, 15, 16),
+             Token('_', ' ', ' ab( att = "32") ', 0, 16, 17)], 
             'element with quoted attributes')
 
     def test_element_invalid_attribute(self):
@@ -320,7 +322,7 @@ class Collect_tokens(unittest.TestCase):
                 Token('U', 'Message'), 
                 [Attributetokens(
                     Token('a', 'message'), 
-                    [Token('v', "invalid text at this position ''\n0:\n  ^")]), 
+                    [Token('v', "error: invalid text ''\n0:0:\n    ^")]), 
                  Attributetokens(
                      Token(type='a', content='level'), 
                      [Token(type='v', content='2')]) ])])
@@ -420,7 +422,8 @@ class Collect_tokens(unittest.TestCase):
                 Token(type='E', content='Message'), 
                 [Attributetokens(
                     Token(type='a', content='message'), 
-                    [Token(type='v', content='my error message\n0:\n  ^')]), 
+                    [Token(
+                        type='v', content='my error message\n0:0:\n    ^')]), 
                  Attributetokens(
                     Token(type='a', content='level'), 
                     [Token(type='v', content='2')])])],
@@ -488,11 +491,11 @@ class Parse_params(unittest.TestCase):
 class Parse_params2(unittest.TestCase):
      
     def test_two_items(self):
-        text = (
+        text_lines = (
             "",
             "Mytest(att=val,att2=val),",
             "Mytest2(att20=val, att22=val22)")
-        res = [*parse_params(text)]
+        res = [*parse_params(text_lines)]
         expected = [
             ('Mytest', {'att': ('val',), 'att2': ('val',)}), 
             ('Mytest2', {'att20': ('val',), 'att22': ('val22',)})]
@@ -500,8 +503,12 @@ class Parse_params2(unittest.TestCase):
             expected, res, 'two items with attributes')
      
     def test_item_with_tuple_atts(self):
-        text = ("Mytest(att=(a,\"b\",c),att2=('d', 'e'), att3=(12.4, 13))",)
-        res = [*parse_params(text)]
+        text_lines = (
+            ["Mytest("
+             "  att=(a,\"b\",c),",
+             "  att2=('d', 'e'),"
+             "  att3=(12.4, 13))"])
+        res = [*parse_params(text_lines)]
         expected = [
             ('Mytest',
               {'att': ('a', '"b"', 'c'), 
@@ -510,7 +517,74 @@ class Parse_params2(unittest.TestCase):
         self.assertEqual(
             expected, res, 'item with tuple attributes')
 
-            
+from collections import namedtuple
+Nt1 = namedtuple('Nt1', 'numbers')
+Nt0 = namedtuple('Nt0', '')
+Message = namedtuple('Message', 'message level', defaults=(2,))
+
+# parameters of object factory
+_convdata = make_converter_data(
+    [#          message       level
+     (Message, ((str, False), (int, False))),
+     (Nt0, ()),
+     (Nt1, (int,True))])
+ 
+class Read_tuples(unittest.TestCase):
+    
+    def test_empty_string(self):
+        self.assertEqual(
+            tuple(read_tuples({}, Message, ())),
+            (),
+            'no input')
+    
+    def test_unknown_element(self):
+        self.assertEqual(
+            tuple(read_tuples({}, Message, ['a'])),
+            (Message(message="unknown element 'a'\n0:0:a\n    ^", level=2),),
+            'unknown element')
+    
+    def test_invalid_characters(self):
+        self.assertEqual(
+            tuple(read_tuples(_convdata, Message, ['42'])),
+            (Message(
+                message="error: invalid characters '42'\n0:0:42\n    ^^", 
+                level=2),),
+            'invalid characters')
+    
+    def test_missing_attribute(self):
+        self.assertEqual(
+            tuple(read_tuples(_convdata, Message, ['Message'])),
+            (Message(
+                message="<lambda>() missing 1 required positional argument: "
+                "'message'\n0:0:Message\n    ^^^^^^^", 
+                level=2),),
+            'missing attribute')
+    
+    def test_default_attribute(self):
+        self.assertEqual(
+            tuple(read_tuples(_convdata, Message, ['Message(message=text)'])),
+            (Message(message='text', level=2),),
+            'default attribute')
+    
+    def test_no_attribute(self):
+        self.assertEqual(
+            tuple(read_tuples(_convdata, Message, ['Nt0'])),
+            (Nt0(),),
+            'no attribute')
+    
+    def test_no_attribute2(self):
+        self.assertEqual(
+            tuple(read_tuples(_convdata, Message, ['Nt0   ()'])),
+            (Nt0(),),
+            'no attribute')
+    
+    # def test_tuple_attribute1(self):
+    #     self.assertEqual(
+    #         tuple(read_tuples(_convdata, Message, [Nt1(numbers=(1,2))])),
+    #         (Nt1(numbers=(1,2)),),
+    #         'attribute has tuple value')
+        
+           
 if __name__ == '__main__':
     unittest.main()
     
