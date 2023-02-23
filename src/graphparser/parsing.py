@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Parser for input of graph data using a string.
-Copyright (C) 2022 pyprg
+Copyright (C) 2023 pyprg
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ ATTRIBUTE_KEY = f'{ATTRIBUTE_KEY_CLASS}+' # word characters
 KEY_VALUE_SEP = r'='
 # '\w' - alphanumeric characters and underscore
 ATTRIBUTE_VALUE_CLASS = r'[+\-.\w]'# plus, minus, decimal point, word character
-ATTRIBUTE_VALUE = f'{ATTRIBUTE_VALUE_CLASS}+' 
+ATTRIBUTE_VALUE = f'{ATTRIBUTE_VALUE_CLASS}+'
 ATTRIBUTE_SEP = r' ,' # space, comma
 
 # string versions of regular expressions
@@ -63,11 +63,11 @@ _empty_dict = {}
 def _make_att_dict(match):
     """Creates a dict of attribute_name: attribute_value {str: str} from
     an re.Match.
-    
+
     Parameters
     ----------
     match: re.Match
-    
+
     Returns
     -------
     dict
@@ -77,12 +77,12 @@ def _make_att_dict(match):
 
 def _line_attributes(firstmatch):
     """Extracts attributes (key-value pairs) from a text line.
-    
+
     Parameters
     ----------
     firstmatch: re.Match
         first match of regular expression in processed line
-    
+
     Yields
     ------
     list
@@ -93,15 +93,15 @@ def _line_attributes(firstmatch):
     yield start, _make_att_dict(firstmatch)
     for m in RE_ATTRIBUTES.finditer(firstmatch.string[end:]):
          yield end + m.span()[0], _make_att_dict(m)
-         
+
 def _line_entities(firstmatch):
     """Extracts entities (nodes) from a text line.
-    
+
     Parameters
     ----------
     firstmatch: re.Match
         first match of regular expression in processed line
-    
+
     Returns
     -------
     list
@@ -122,13 +122,13 @@ def _scanoneline(oneline):
         'a' - attributes
         'e' - entities
         'b' - blank
-    and creates a result structure, which is a tuple with first 
+    and creates a result structure, which is a tuple with first
     element 'c'|'a'|'e'|'b' and a category specific tail.
-    
+
     Parameters
     ----------
     oneline: str
-    
+
     Returns
     -------
     tuple
@@ -146,12 +146,12 @@ def _scanoneline(oneline):
 
 def _scanlines(lines):
     """Scans a sequence (iterable) of strings.
-    
+
     Parameters
     ----------
     lines: iterable
         str
-    
+
     Yields
     ------
     dict
@@ -186,12 +186,12 @@ def _scanlines(lines):
 
 def _scanentities(lines):
     """Scans a sequence (iterable) of strings.
-    
+
     Parameters
     ----------
     lines: iterable
         str
-    
+
     Yields
     ------
     dict
@@ -211,7 +211,7 @@ def _scanentities(lines):
 def _get_positions(posl, posr, l_connect, r_connect):
     """Corrects position of start by +1 if not connected at left side,
     end position by -1 if not connected at right side.
-    
+
     Parameters
     ----------
     posl: int
@@ -222,7 +222,7 @@ def _get_positions(posl, posr, l_connect, r_connect):
         connected at left side?
     r_connect: bool
         connected at right side?
-    
+
     Returns
     -------
     tuple
@@ -232,12 +232,12 @@ def _get_positions(posl, posr, l_connect, r_connect):
 def _get_connect(e_id):
     """Checks if given entity shall be connected to left/right adjacent
     entity.
-    
+
     Parameters
     ----------
     e_id: str
         string of entity-ID
-    
+
     Returns
     -------
     tuple
@@ -247,7 +247,7 @@ def _get_connect(e_id):
 
 def strip_id(e_id, l_connect, r_connect):
     """Removes leading/trailing character when l_connect/r_connect.
-    
+
     Parameters
     ----------
     e_id: str
@@ -256,7 +256,7 @@ def strip_id(e_id, l_connect, r_connect):
         entity shall be connected to left neighbour
     r_connect:
         entity shall be connected to right neighbour
-    
+
     Returns
     -------
     str
@@ -264,11 +264,11 @@ def strip_id(e_id, l_connect, r_connect):
     return (
         e_id if l_connect and r_connect else
         # strip one leading and one trailing underscore
-        e_id[0 if l_connect else 1:None if r_connect else -1])    
-        
+        e_id[0 if l_connect else 1:None if r_connect else -1])
+
 def _correct_id_pos(e_id, poss):
     """Corrects position and strips id in case of leading/trailing underscore
-    
+
     Parameters
     ----------
     e_id: str
@@ -289,14 +289,14 @@ def _correct_id_pos(e_id, poss):
 def _add_connects(poss, e_id):
     """Leading/trailing underscore means no connection to left/right.
     The function checks connections, corrects positions and ID.
-    
+
     Parameters
     ----------
     poss: tuple
         int, int (start position, end position - exclusive)
     e_id: str
         ID of entity
-        
+
     Returns
     -------
     tuple
@@ -306,19 +306,19 @@ def _add_connects(poss, e_id):
         * bool, right connection?"""
     l_connect, r_connect = _get_connect(e_id)
     return (
-        _get_positions(*poss, l_connect, r_connect), 
-        (strip_id(e_id, l_connect, r_connect), 
-         l_connect, 
+        _get_positions(*poss, l_connect, r_connect),
+        (strip_id(e_id, l_connect, r_connect),
+         l_connect,
          r_connect))
 
 def _neighbourids(infos):
     """Returns IDs of left/right nodes connected by an edge to current node.
-    
+
     Parameters
     ----------
     info: array_like
         tuple (str, bool, bool), (ID, connects_l, connects_r)
-    
+
     Returns
     -------
     tuple
@@ -344,7 +344,7 @@ def _insert_edges(entities):
     """Adds edge tuples in the sequence of nodes. '_' on left/right side of ID
     means that node is not connected to left/right neighbour. The function
     does not insert an edge in this case.
-    
+
     Parameter
     ---------
     entities: iterable
@@ -370,22 +370,22 @@ def _insert_edges(entities):
         pre_poss = e_poss
         pre_info = e_info
     yield (
-        pre_poss, 
-        'node', 
-        pre_info[0], 
-        (_leftneighbourid(other_infos[-2]) 
+        pre_poss,
+        'node',
+        pre_info[0],
+        (_leftneighbourid(other_infos[-2])
          if (pre_info[1] and 1 < len(other_infos)) else _empty_tuple))
 
 def _get_collect_atts(atts):
-    """Creates a function returning attributes for a given interval of 
+    """Creates a function returning attributes for a given interval of
     positions (columns).
-    
+
     Parameters
     ----------
     atts: iterable
-        tuple int, some_data, 
+        tuple int, some_data,
         (the iterable is sorted according to position)
-    
+
     Returns
     -------
     function
@@ -399,14 +399,14 @@ def _get_collect_atts(atts):
         to their positions. Moves in this list to greater position only.
         That means that for subsequent calls the interval must also
         grow towards greater positions.
-        
+
         Parameters
         ----------
         start: int
             start position
         end: int
             last position (exclusive)
-        
+
         Yields
         ------
         some_data"""
@@ -426,15 +426,15 @@ def _merge_dicts(dicta, dictb):
 
 def _add_atts(sorted_entities, sorted_atts):
     """Adds attributes having suitable position to entities (nodes/edges).
-    
+
     Parameters
     ----------
     sorted_entities: iterable
         tuples, sorted according to start position
     sorted_atts: iterable
-        tuples, sorted according to position 
+        tuples, sorted according to position
         (which is the position of the left most characters)
-    
+
     Yields
     ------
     tuple
@@ -454,34 +454,34 @@ def parse_graph(textlines):
     edges can have attributes.
 
     example_string ('-' characters are used to improve readability for humans,
-    '-' has no meaning and is not processed, other non-word characters may also 
+    '-' has no meaning and is not processed, other non-word characters may also
     be used for the purpose of improved readability):
     ::
-        
+
             cn=0-1
                   a=10
         a=15      b=30
         n0-------n1----------n2
                      cn=1-2   a=hello
-            
-                  a=30     
+
+                  a=30
         n0-------n3----------n4
                      cn=3-4 row=2
 
     [*parse(example_string)] produces a list of tuples:
     ::
         [
-            ('node', 'n0', ('n1',), {'a': '15'}), 
-            ('edge', ('n0', 'n1'), {'cn': '0-1'}), 
-            ('node', 'n1', ('n0', 'n2'), {'a': '10', 'b': '30'}), 
-            ('edge', ('n1', 'n2'), {'cn': '1-2'}), 
-            ('node', 'n2', ('n1',), {'a': 'hallo'}), 
-            ('node', 'n0', ('n3',), {}), ('edge', ('n0', 'n3'), {}), 
-            ('node', 'n3', ('n0', 'n4'), {'a': '30'}), 
-            ('edge', ('n3', 'n4'), {'cn': '3-4', 'row': '2'}), 
+            ('node', 'n0', ('n1',), {'a': '15'}),
+            ('edge', ('n0', 'n1'), {'cn': '0-1'}),
+            ('node', 'n1', ('n0', 'n2'), {'a': '10', 'b': '30'}),
+            ('edge', ('n1', 'n2'), {'cn': '1-2'}),
+            ('node', 'n2', ('n1',), {'a': 'hallo'}),
+            ('node', 'n0', ('n3',), {}), ('edge', ('n0', 'n3'), {}),
+            ('node', 'n3', ('n0', 'n4'), {'a': '30'}),
+            ('edge', ('n3', 'n4'), {'cn': '3-4', 'row': '2'}),
             ('node', 'n4', ('n3',), {})
-        ]        
-    
+        ]
+
     The format defines three types of text-lines:
         * 'blank' line
         * comment line
@@ -493,51 +493,51 @@ def parse_graph(textlines):
         A line is a comment if first character is '#'. When '#' is not first
         the line is not a comment. Comments are ignored by the parser.
     Node line:
-        A node line defines nodes and adjacent nodes. The parser creates an 
-        edge between two nodes. A node is expressed as sequence of word 
-        characters, left and right borders are non-word 
-        characters, Leading/trailing underscore ('_') prevents addition of an 
+        A node line defines nodes and adjacent nodes. The parser creates an
+        edge between two nodes. A node is expressed as sequence of word
+        characters, left and right borders are non-word
+        characters, Leading/trailing underscore ('_') prevents addition of an
         edge by the parser to the left/right. The leading/trailing
         underscore is not part of the node ID.
     Attribute line:
         Attributes are key-value pairs, which are two strings separated by
         character '=' (example: myproperty=42). The key is a sequence of
         word characters, the value a sequence of word characters plus
-        '.', '+', '-'. A sequence of attributes are attributes separated by 
+        '.', '+', '-'. A sequence of attributes are attributes separated by
         one space (' ') or one comma (',').
-    A Processing Unit is one node line with no, one or multiple attribute 
+    A Processing Unit is one node line with no, one or multiple attribute
     lines. Units are separated by 'blank' lines.
     Sequences of attributes are associated to the node or edge sharing one
     position (column) with the first character of the attributes-sequence.
-    
+
     Parameters
     ----------
     textlines: iterable
         strings to be parsed
-    
+
     Returns
     -------
     collections.abc.Iterable
-        * tuple (either 'node', 'edge', or 'comment'), all values are strings: 
-            * 'node': 
-                * ('node', 
-                  ID, 
-                  tuple_of_adjacent_node_ids, 
+        * tuple (either 'node', 'edge', or 'comment'), all values are strings:
+            * 'node':
+                * ('node',
+                  ID,
+                  tuple_of_adjacent_node_ids,
                   dict_of_attributes)
-            * 'edge': 
-                * ('edge', 
-                  (ID_of_left_node, ID_of_right_node), 
+            * 'edge':
+                * ('edge',
+                  (ID_of_left_node, ID_of_right_node),
                   dict_of_attributes)
             * 'comment':
                 * str
                 * int, zero based index of row
-    
+
     Raises
     ------
     ValueError"""
     def _pieces(entity_atts):
         """subfunction"""
-        entities = entity_atts.get('entities', _empty_tuple) 
+        entities = entity_atts.get('entities', _empty_tuple)
         atts = entity_atts.get('atts', _empty_tuple)
         if entities or atts:
             yield from _add_atts(
@@ -552,28 +552,28 @@ def parse_graph(textlines):
 def parse(string):
     """Parses a string of graph data. More help is available at function
     'parse_graph'.
-    
+
     Parameters
     ----------
     string: str
-        text to parse
-    
+        multiline text to parse
+
     Returns
     -------
     collections.abc.Iterable
-        * tuple (either 'node' or 'edge'), all values are strings: 
-            * 'node': 
-                * ('node', 
-                  ID, 
-                  tuple_of_adjacent_node_ids, 
+        * tuple (either 'node' or 'edge'), all values are strings:
+            * 'node':
+                * ('node',
+                  ID,
+                  tuple_of_adjacent_node_ids,
                   dict_of_attributes)
-            * 'edge': 
-                * ('edge', 
-                  (ID_of_left_node, ID_of_right_node), 
+            * 'edge':
+                * ('edge',
+                  (ID_of_left_node, ID_of_right_node),
                   dict_of_attributes)
             * 'comment':
                 * str
-    
+
     Raises
     ------
     ValueError"""
@@ -582,19 +582,19 @@ def parse(string):
 def parse_positions(textlines):
     """Extracts nodes and positions of their first characters from iterable
     of text lines.
-    
+
     Parameters
     ----------
     lines: iterable
         str
-    
+
     Returns
     -------
     iterator
         tuple
             * tuple, float, position x, y
             * str, id
-    
+
     Raises
     ------
     ValueError"""
@@ -611,7 +611,7 @@ def disconnect(schema='', devid='', side='r', nodeid='n'):
     if the schema provides enough space before/after the addressed devid and
     inserts '_' + nodeid or nodeid + '_'. The function returns
     the modified string if the change is possible, None otherwise.
-    
+
     Paramters
     ---------
     schema: str
@@ -623,7 +623,7 @@ def disconnect(schema='', devid='', side='r', nodeid='n'):
         'l' - left, 'r' - right
     nodeid: str
         ID of new helper node to insert
-    
+
     Returns
     -------
     str"""
@@ -650,9 +650,9 @@ def disconnect(schema='', devid='', side='r', nodeid='n'):
     return None
 
 def cut(schema='', devid='', side='', nodeid='n'):
-    """Helper function for manipulation of multiline-string schema 
+    """Helper function for manipulation of multiline-string schema
     before parsing.
-    
+
     Parameters
     ----------
     schema: str
@@ -663,7 +663,7 @@ def cut(schema='', devid='', side='', nodeid='n'):
         left/right
     nodeid: str
         ID (name) of additional entity to be inserted as a terminating node
-    
+
     Returns
     -------
     str
@@ -676,14 +676,14 @@ def cut(schema='', devid='', side='', nodeid='n'):
 def cuts(schema, devs=_empty_tuple):
     """Creates versions of schema by inserting a terminating node
     which is close to removing an edge.
-    
+
     Parameters
     ----------
     schema: str
-    
+
     devs: iterable
         str, IDs of nodes to modify one after another
-        
+
     Returns
     -------
     iterator, str (version of schema)"""
@@ -695,9 +695,9 @@ def cuts(schema, devs=_empty_tuple):
 
 import re
 from collections import namedtuple
-Token = namedtuple(
-    'Token', 
-    'type content text row start end', 
+_Token = namedtuple(
+    '_Token',
+    'type content text row start end',
     defaults=('', '', 0, 0, 1))
 
 _tuple_parsing_states = {
@@ -727,8 +727,7 @@ _tuple_parsing_states = {
     'v': re.compile(
         '(?P<_v>\s+)|'
         '(?P<vb>[\.\-+\w]+)|'
-        '(?P<v2b>"[^"]*")|'
-        '(?P<v3b>\'[^\']*\')|'
+        '(?P<v2b>(?P<br>"|\').*?(?P=br))|'
         '(?P<_w>\()|'
         '(?P<Fv>[^"\'\(\.\-+\w])'),
     # after attribute
@@ -750,14 +749,14 @@ def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
     """Creates tokens from text according to defined types and transitions.
     Yields an error token of type 'E' and stops in case of unrecoverable
     error.
-    
+
     Parameters
     ----------
     text: iterable
         string
     states: dict
         optional, default _tuple_parsing_states
-        str=>re.Pattern, the key is just one character, 
+        str=>re.Pattern, the key is just one character,
         re.Pattern.search must in any case produce a match with an arbitrary
         string, the first character of the match group is the type
         of the issued token, the last character is the new state which
@@ -765,7 +764,7 @@ def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
     start_state: str
         optional, default='e'
         one character, key in states for the first regular expression
-        
+
     Yields
     ------
     tuple
@@ -783,7 +782,7 @@ def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
             pattern = states.get(state)
             if pattern is None:
                 msg = f'unknown state \'{state}\' reached'
-                yield Token('E', msg, text_line, row, start, start+1)
+                yield _Token('E', msg, text_line, row, start, start+1)
                 return
             m = pattern.search(text_line, start)
             if m:
@@ -791,47 +790,77 @@ def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
                     k, v = next(kv for kv in m.groupdict().items() if kv[1])
                 except StopIteration:
                     msg = 'no match in state \'{state}\''
-                    yield Token('E', msg, text_line, row, start, start+1)
+                    yield _Token('E', msg, text_line, row, start, start+1)
                     return
                 column_startstop = m.span()
-                yield Token(k[0], v, text_line, row, *column_startstop)
+                yield _Token(k[0], v, text_line, row, *column_startstop)
                 state = k[-1]
                 start = column_startstop[1]
             else:
                 msg = f'no match in state \'{state}\''
-                yield Token('E', msg, text_line, row, start, start+1)
+                yield _Token('E', msg, text_line, row, start, start+1)
                 return
 
 # collecting tokens
 
-Tokencollection = namedtuple('Tokencollection', 'name attributes')
-Attributetokens = namedtuple('Attributetokens', 'name values')
+_Tokencollection = namedtuple('Tokencollection', 'name attributes')
+_Tokencollection.__doc__ = """_Token instances e.g. for string
+'ab(c=("d", "e"),f=g)' created by function '_collect_tokens'.
+_Tokencollection describes a parsed entity.
 
-Context = namedtuple('Context', 'element attributes')
+Parameters
+----------
+name: _Token
+    class name of tuple
+attributes: array_like
+    Attributetokens
+"""
+
+_Attributetokens = namedtuple('Attributetokens', 'name values')
+_Attributetokens.__doc__ = """Stores _Token instances of an attribute
+name and an array_like of _Token instances for the attribute values.
+
+Parameters
+----------
+name: _Token
+    name of attribute
+values: array_like
+    _Token
+"""
+
+_Context = namedtuple('Context', 'element attributes')
+_Context.__doc__ = """Temporary store for data during parsing.
+
+Parameters
+----------
+element: str
+    name of parsed entity
+attributes: _Attributetokens
+"""
 
 def _new_collection(context, token):
-    return Context(token, []), None, True
-    
+    return _Context(token, []), None, True
+
 def _new_attribute(context, token):
-    context.attributes.append(Attributetokens(token, []))
+    context.attributes.append(_Attributetokens(token, []))
     return context, None, True
-    
+
 def _add_value(context, token):
     context.attributes[-1].values.append(token)
     return context, None, True
 
 def _issue_collection(context, _):
-    return None, Tokencollection(context.element, context.attributes), True
+    return None, _Tokencollection(context.element, context.attributes), True
 
 def _get_position_hint(token):
     """Creates two lines of text.
-    First row number and token text, then second 
+    First row number and token text, then second
     line visual position indicator.
-    
+
     Parameters
     ----------
-    token: Token
-    
+    token: _Token
+
     Returns
     -------
     str, multiline"""
@@ -839,55 +868,55 @@ def _get_position_hint(token):
     prefix = f'{token.row}:{start}:'
     row_len = len(prefix)
     return '\n'.join(
-        [f'{prefix}{token.text}', 
+        [f'{prefix}{token.text}',
          f'{" "*row_len}{"-"*start}{"^"*(token.end-start)}'])
 
 def _message_collection(text, token):
     """Creates a Tokencollection for an error message of level==2.
-    
+
     Parameters
     ----------
     text: str
         error message
-    token: Token
-    
+    token: _Token
+
     Returns
     -------
     Tokencollection"""
-    return Tokencollection(
-        name = Token(
-            type=token.type, 
+    return _Tokencollection(
+        name = _Token(
+            type=token.type,
             content='Message',
             text=token.text,
             row=token.row,
             start=token.start,
             end=token.end),
         attributes=[
-            Attributetokens(
-                name = Token(
-                    'a', 'message', token.text, 
+            _Attributetokens(
+                name = _Token(
+                    'a', 'message', token.text,
                     token.row, token.start, token.end),
                 values = [
-                    Token('v', text, token.text, 
+                    _Token('v', text, token.text,
                           token.row, token.start, token.end)]),
-            Attributetokens(
-                name = Token(
-                    'a', 'level', token.text, 
+            _Attributetokens(
+                name = _Token(
+                    'a', 'level', token.text,
                     token.row, token.start, token.end),
                 values = [
-                    Token('v', '2', token.text, 
+                    _Token('v', '2', token.text,
                           token.row, token.start, token.end)])])
 
 def _error(context, token):
-    """Creates an instance of Tokencollection from error tokens"""
+    """Creates an instance of _Tokencollection from error tokens"""
     text = '\n'.join([token.content, _get_position_hint(token)])
     return context, _message_collection(text, token), True
 
 def _invalid_character_error(context, token):
-    """Creates an instance of Tokencollection from error tokens"""
+    """Creates an instance of _Tokencollection from error tokens"""
     plural = '' if token.end-token.start < 2 else 's'
     text = '\n'.join(
-        [f'error: invalid character{plural} \'{token.content}\'', 
+        [f'error: invalid character{plural} \'{token.content}\'',
          _get_position_hint(token)])
     return context, _message_collection(text, token), True
 
@@ -897,14 +926,14 @@ def _invalid_token_error(context, token):
          _get_position_hint(token)])
     return context, _message_collection(text, token), True
 
-_unexpected_end_of_stream_error = Tokencollection(
-        Token('E', 'Message'),
-        [Attributetokens(
-            Token('a', 'message'), 
-            [Token('v', 'error, unexpected end of data')]),
-         Attributetokens(
-             Token('a', 'level'), 
-             [Token('v', '2')])])
+_unexpected_end_of_stream_error = _Tokencollection(
+        _Token('E', 'Message'),
+        [_Attributetokens(
+            _Token('a', 'message'),
+            [_Token('v', 'error, unexpected end of data')]),
+         _Attributetokens(
+             _Token('a', 'level'),
+             [_Token('v', '2')])])
 
 def _issue_unexpected_end_of_stream_error(context, _):
     return None, _unexpected_end_of_stream_error, False
@@ -912,15 +941,23 @@ def _issue_unexpected_end_of_stream_error(context, _):
 def _stop_processing(context, token):
     return None, None, False
 
+# Actions and new states triggered by applying
+# tokens produced by function '_tokenize' to states. The states are the
+# keys of a dictionary which contains dictionaries with keys according to
+# 'types' of tokens (str). The second dict provides an iterable of actions and
+# the new state per applied token. Both dictionaries are the first elements
+# in array_likes which provide a default entry as a second element
+# used by function '_collect_tokens' if no key matches.
+#
 # _transitions is a tuple
-#   * state=>(type_of_token=>(actions, key_of_next_state) 
+#   * state=>(type_of_token=>(actions, key_of_next_state)
 #   * type_of_token=>(iterable_of_actions, key_of_next_state)
 #
 # Tokentype 'C' (close == 'end of stream') is needed in all states
 _transitions = ({
     # elment state
     'e':(
-        {'_':((),'e'),
+        {'_':(_empty_tuple,'e'),
          'e':((_issue_collection, _new_collection), 'e'),
          'a':((_new_attribute,),'a'),
          'F':((_invalid_character_error,), 'e'),
@@ -929,7 +966,7 @@ _transitions = ({
         ((_invalid_token_error,), 'e')),
     # attribute state
     'a':(
-        {'_':((),'a'),
+        {'_':(_empty_tuple,'a'),
          'v':((_add_value,), 'v'),
          'F':((_invalid_character_error,), 'a'),
          'E':((_error, _stop_processing), 'E'),
@@ -937,7 +974,7 @@ _transitions = ({
         ((_invalid_token_error,), 'a')),
     # value state
     'v':(
-        {'_':((),'v'),
+        {'_':(_empty_tuple,'v'),
          'e':((_issue_collection, _new_collection), 'e'),
          'a':((_new_attribute,),'a'),
          'v':((_add_value,), 'v'),
@@ -947,28 +984,29 @@ _transitions = ({
         ((_invalid_token_error,), 'v'))},
     # initial state
     (
-    {'_':((), '_'),
+    {'_':(_empty_tuple, '_'),
      'e':((_new_collection,), 'e'),
      'F':((_invalid_character_error,), '_'),
      'E':((_error, _stop_processing), 'E'),
      'C':((), '_')},
     ((_invalid_token_error,), '_')))
 
-_close = [Token('C')]
-    
+_close = [_Token('C')]
+
 def _collect_tokens(tokens, transitions=_transitions):
-    """Creates a stream of Tokencollection instances from a stream of tokens.
-    
+    """Creates a stream of _Tokencollection instances from a stream of
+    _Token instances.
+
     Parameters
     ----------
     tokens: iterable
-        Token
+        _Token
     tansitions: tuple
         see _transitions
-    
+
     Yields
     ------
-    Tokencollection"""
+    _Tokencollection"""
     states, default_transitions = transitions
     trans_dict, default_trans = default_transitions
     context = None
@@ -984,25 +1022,25 @@ def _collect_tokens(tokens, transitions=_transitions):
 
 def _parse_params(text_lines):
     """Parses a multiline text.
-    
+
     Parameters
     ----------
     text: iterable
         str
-    
+
     Yields
     ------
-    Tokencollection"""
+    _Tokencollection"""
     return _collect_tokens(_tokenize(text_lines))
 
 def parse_params(text_lines):
     """Parses a multiline text.
-    
+
     Parameters
     ----------
     text: iterable,
         str
-    
+
     Yields
     ------
     tuple
@@ -1011,24 +1049,26 @@ def parse_params(text_lines):
     return (
         (collection.name.content,
          {att.name.content:tuple(v.content for v in att.values)
-         for att in collection.attributes}) 
+         for att in collection.attributes})
         for collection in _parse_params(text_lines))
 
 def _convert_values(cls_, value_tokens):
-    """Converts values of one attribute to class cls_.
-    
+    """Converts values of one attribute to type cls_.
+
     Parameters
     ----------
+    cls_: callable
+        unary function for data conversion e.g. int, str, bool
     value_tokens: iterable
-        Token
-    
+        _Token
+
     Yields
     ------
     instances of cls_
-    
+
     Raises
     ------
-    ValueError"""
+    ValueError (raised by cls_)"""
     for token in value_tokens:
         try:
             yield cls_(token.content)
@@ -1040,13 +1080,14 @@ def _convert_values(cls_, value_tokens):
 
 def _convert_att(att_tokens, att_descr):
     """Converts tokens of one attribute two accepted type.
-    
+
     Parameters
     ----------
-    att_token: Attributetokens
-    
+    att_token: _Attributetokens
+
     att_descr: tuple
-    
+        (class, bool) / (casting function, is_tuple)
+
     Returns
     -------
     tuple
@@ -1058,7 +1099,7 @@ def _convert_att(att_tokens, att_descr):
         cls_, is_tuple = att_descr[att_name]
     except KeyError:
         text = '\n'.join(
-            [f'attribute name not valid \'{att_name}\'',
+            [f'error: invalid name for attribute \'{att_name}\'',
              _get_position_hint(att_tokens.name)])
         return text, None, None
     value_tokens = att_tokens.values
@@ -1070,28 +1111,29 @@ def _convert_att(att_tokens, att_descr):
         return text, None, None
     try:
         values = tuple(_convert_values(cls_, value_tokens))
+        return None, att_name, values if is_tuple else values[0]
     except ValueError as ve:
         return str(ve), None, None
-    return None, att_name, values if is_tuple else values[0]
 
-def _convert(converter_data, msg_factory, token_collection):
-    """Maps token_collection to objects.
-    
+def _make_object(type_data, msg_factory, token_collection):
+    """Maps token_collection to an object.
+
     Parameters
     ----------
-    converter_data: dict
-    
-    msg: callable
-        (str, int)->(object) / (text, index_of_row)->(object)
-    token_collection: Tokencollection
-    
+    type_data: dict
+        str=>(class, str=>(class, bool)) /
+        classname=>(class, attributename=>(class, is_tuple)),
+        function creating an object (str, int)->(object) /
+        (message, level)->(message_object)
+    token_collection: _Tokencollection
+
     Returns
     -------
     Object according to converter_data"""
     name_content = token_collection.name.content
-    converter = converter_data.get(name_content)
-    if converter:
-        cls_, att_descr = converter
+    meta = type_data.get(name_content)
+    if meta:
+        cls_, att_descr = meta
         errors = [] # str-instances
         att_dict = {}
         for att_tokens in token_collection.attributes:
@@ -1116,34 +1158,42 @@ def _convert(converter_data, msg_factory, token_collection):
              _get_position_hint(token_collection.name)])
         return msg_factory(text, 2)
 
-def read_tuples(converter_data, msg_factory, text_lines):
+def make_objects(type_data, msg_factory, text_lines):
     """Parses a text of objects defined in namedtuple-like
-    syntax. Returns the objects according to converter_data.
-    
+    syntax. Returns objects according to 'type_data'. For errors of the parsing
+    process a tuple 'Message(message,level)' with types str,int shall be
+    provided in 'type_data'. If no entry for a parsed entity can be found
+    in 'type_data' 'msg_factory' is called with two positional parameters of
+    type str, int having the meaning of error text and error level
+    (which is 2). The call of 'msg_factory' shall return an error-object
+    which is yield from this generator function
+
     Parameters
     ----------
-    converter_data: dict
-        str=>(class, str=>(class,bool))
+    type_data: dict
+        str=>(class, str=>(class, bool)) /
         classname=>(class, attributename=>(class, is_tuple)),
-        converter_data is created from namedtuples and additional data
-        from function 'make_converter_data'
+        type_data is created from namedtuples and additional data
+        from function 'make_type_data' but can also be 'handmade' which
+        makes it possible to call functions accepting named attributes
+        during string processing
     msg_factory: callable
         function creating an object (str, int)->(object) /
         (message, level)->(message_object)
     text_lines: iterable
         str
-    
+
     Returns
     -------
-    iterator
+    iterable
         objects"""
-    return (_convert(converter_data, msg_factory, t)
+    return (_make_object(type_data, msg_factory, t)
             for t in _parse_params(text_lines))
 
-def make_converter_data(meta):
-    """Creates a dictionary 
+def make_type_data(meta):
+    """Creates a dictionary
     classname=>(class, dict(attributename=>(type, is_tuple))).
-    
+
     Parameters
     ----------
     meta: iterable
@@ -1152,74 +1202,22 @@ def make_converter_data(meta):
             * iterable of tuples (str, bool)
                 * str, name of attribute
                 * bool, is_tuple
-        e.g.
+
+        e.g. for the named tuples:
         ::
-            ([Mytest, ((str, False), (float,True))],
-             [Mytest2, ((float, True), (float,False), (int,True))],
-             [Message, ((str, False), (int,False))])
-    
+            Mytest = collections.namedtuple('Mytest', 'att att2')
+            Mytest2 = collections.namedtuple('Mytest2', 'att att2 att3')
+            Message = collections.namedtuple('Message', 'att att2')
+
+        parameter 'meta' could be:
+        ::
+            ([Mytest, [(str, False), (float, True)]],
+             [Mytest2, [(float, True), (float, False), (int, True)]],
+             [Message, [(str, False), (int, False)]])
+
     Returns
     -------
-    dict 
-        str=>(class, str=>(str,bool))"""
+    dict
+        str=>(class, str=>(class, bool))"""
     return {def_[0].__name__:(def_[0], dict(zip(def_[0]._fields, def_[1])))
             for def_ in meta}
-
-#%%
-
-
-
-from collections import namedtuple
-Nt0 = namedtuple('Nt0', '')
-Message = namedtuple('Message', 'message level')
-
-tokens = list(_tokenize(['42']))
-#print(tokens)
-
-collections = list(_collect_tokens(tokens))
-
-
-
-_convdata = make_converter_data(
-    [(Message, ((str, False), (int,False)))])
-
-
-
-out = tuple(read_tuples(_convdata, Message, ['42']))
-#%%
-#print(out[0].message)
-
-#%%
-from collections import namedtuple
-
-Nt0 = namedtuple('Nt0', '')
-
-
-
-
-Mytest = namedtuple('Mytest', 'att att2')
-Mytest2 = namedtuple('Mytest2', 'att att2 att3')
-Message = namedtuple('Message', 'message level')
-
-
-_converter_def = (
-    [Mytest, ((str, False), (float,True))],
-    [Mytest2, ((float, True), (float,False), (int,True))],
-    [Message, ((str, False), (int,False))])
-
-
-_converter_data = make_converter_data(_converter_def)
-
-#print(_converter_data)
-text_lines = (
-    "",
-    "Mytest(att=Hallo,att2=17.2),",
-    "Mytest2(att=2, att2=(3, 42.0), att3=(19, 29))")
-
-ab = [*parse_params(text_lines)]
-#print(ab)    
-
-instances = [_convert(_converter_data, Message, t) 
-             for t in _parse_params(text_lines)]
-
-#print(instances)    

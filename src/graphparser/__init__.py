@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Parser for input of graph data using a string.
-Copyright (C) 2022 pyprg
+Copyright (C) 2023 pyprg
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,4 +19,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 @author: pyprg
 """
 
-from graphparser.parsing import parse, parse_graph, parse_positions, cuts
+from graphparser.parsing import (
+    parse, parse_graph, parse_positions, cuts,
+    make_type_data, make_objects)
