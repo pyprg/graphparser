@@ -704,20 +704,25 @@ _tuple_parsing_states = {
     # element
     'e': re.compile(
             '(?P<_e>\s+)|'
-            '(?P<ef>[A-Za-z]\w*)|'
-            '(?P<Fe>[^A-Za-z\s]+)'),
+            '(?P<ef>\w+)|'
+            '(?P<Fe>\W+)'),
     # after element
     'f': re.compile(
-            '(?P<_f>\s+)|'
-            '(?P<_e>,)|'
-            '(?P<_a>\()|'
-            '(?P<Ff>[^,\(])'),
+            # consume all white spaces up to one
+            '(?P<_f>\s+(?!\S))|'
+            # comma is separator between two elements
+            '(?P<_e>\s?,)|'
+            # white space is separator between two elements
+            # when not followed by an opening brace
+            '(?P<_2e>\s(?!\())|'
+            '(?P<_a>\s?\()|'
+            '(?P<Ff>\s?[^,\(])'),
     # attribute
     'a': re.compile(
             '(?P<_a>\s+)|'
             '(?P<aq>[A-Za-z]\w*)|'
-            '(?P<_e>\))|'
-            '(?P<Fa>[^A-Za-z\s]+)'),
+            '(?P<_f>\))|'
+            '(?P<Fa>[^A-Za-z\)\s]+)'),
     # equal sign
     'q': re.compile(
             '(?P<_q>\s+)|'
@@ -732,6 +737,7 @@ _tuple_parsing_states = {
             '(?P<Fv>[^"\'\(\.\-+\w])'),
     # after attribute
     'b': re.compile(
+            # comma or white space separate attributes
             '(?P<_a>\s*(\s|,))|'
             '(?P<_f>\s*\))|'
             '(?P<Fb>\s*[^,\)]+)'),

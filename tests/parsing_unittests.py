@@ -266,7 +266,8 @@ class Tokenize(unittest.TestCase):
         self.assertEqual([*_tokenize(['ab(,)'])],
             [_Token('e', content='ab', text='ab(,)', row=0, start=0, end=2),
              _Token('_', content='(', text='ab(,)', row=0, start=2, end=3),
-             _Token('F', content=',)', text='ab(,)', row=0, start=3, end=5)],
+             _Token('F', content=',', text='ab(,)', row=0, start=3, end=4),
+             _Token('_', content=')', text='ab(,)', row=0, start=4, end=5)],
             'element with two attributes')
 
     def test_two_elements(self):
@@ -560,14 +561,6 @@ class Read_tuples(unittest.TestCase):
             (Message(message="unknown element 'a'\n0:0:a\n    ^", level=2),),
             'unknown element')
 
-    def test_invalid_characters(self):
-        self.assertEqual(
-            tuple(make_objects(_convdata, Message, ['42'])),
-            (Message(
-                message="error: invalid characters '42'\n0:0:42\n    ^^",
-                level=2),),
-            'invalid characters')
-
     def test_missing_attribute(self):
         self.assertEqual(
             tuple(make_objects(_convdata, Message, ['Message'])),
@@ -671,7 +664,7 @@ class Read_tuples(unittest.TestCase):
             tuple(make_objects(
                 _convdata,
                 Message,
-                [' Nt2 ( height = 13.5, width=21 ) '])),
+                [' Nt2(height = 13.5, width=21 ) '])),
             (Nt2(height=13.5, width=21),),
             'attribute has tuple value')
 
@@ -716,12 +709,36 @@ class Read_tuples(unittest.TestCase):
             tuple(make_objects(
                 _convdata,
                 Message,
-                [' Nt22 ( height = (13.5 42)  width=(21 27) ) '])),
+                [' Nt22( height = (13.5 42)  width=(21 27) ) '])),
             (Nt2(height=(13.5, 42), width=(21, 27)),),
             'attribute has tuple value, no commas')
 
+    def test_two_elements(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt0 Nt0 '])),
+            (Nt0(),Nt0()),
+            'two elements, no commas')
 
+    def test_two_elements2(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt0(), Nt0 '])),
+            (Nt0(),Nt0()),
+            'attribute has tuple value, no commas')
 
+    def test_two_elements3(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt0(),   Nt0 Nt0  (  ) ,Nt0'])),
+            (Nt0(), Nt0(), Nt0(), Nt0()),
+            'elements might be separated by commas or not')
 
 if __name__ == '__main__':
     unittest.main()
