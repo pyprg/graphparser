@@ -732,17 +732,27 @@ _tuple_parsing_states = {
             '(?P<Fv>[^"\'\(\.\-+\w])'),
     # after attribute
     'b': re.compile(
-            '(?P<_a>\s*?(\s|,))|'
-            '(?P<_f>\s*?\))|'
+            '(?P<_a>\s*(\s|,))|'
+            '(?P<_f>\s*\))|'
             '(?P<Fb>\s*[^,\)]+)'),
     # values
     'w': re.compile(
             '(?P<_w>\s+)|'
-            '(?P<vw>[\.\-+\w]+)\s*?,|'
-            '(?P<v2w>(?P<qu>"|\').*?(?P=qu))\s*,|'
-            '(?P<vb>[\.\-+\w]+)\s*\)|'
-            '(?P<v2b>(?P<qu2>"|\').*?(?P=qu2))\s*\)|'
-            '(?P<Fw>[^\.\-+\w\'"]+)')}
+            '(?P<vx>[\.\-+\w]+)|'
+            '(?P<v2x>(?P<qu>"|\').*?(?P=qu))|'
+            '(?P<Fw>[^\.\-+\w\'\s"]+)'),
+    # after values
+    'x': re.compile(
+            # consume all white spaces up to one
+            '(?P<_x>\s+(?!\S))|'
+            # comma is separator between multiple attribute values
+            '(?P<_w>\s?,)|'
+            # white space is separator between multiple attribute values
+            # when not followed by a closing brace
+            '(?P<_2w>\s(?!\)))|'
+            # closing brace -> end of attribute
+            '(?P<_b>\s?\))|'
+            '(?P<Fb>\s?[^,\)]+)')}
 
 def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
     """Creates tokens from text according to defined types and transitions.
@@ -788,7 +798,7 @@ def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
                 try:
                     k, v = next(kv for kv in m.groupdict().items() if kv[1])
                 except StopIteration:
-                    msg = 'no match in state \'{state}\''
+                    msg = f'no match in state \'{state}\''
                     yield _Token('E', msg, text_line, row, start, start+1)
                     return
                 column_startstop = m.span()

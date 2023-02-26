@@ -281,13 +281,16 @@ class Tokenize(unittest.TestCase):
              _Token('a', 'b', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 8, 9),
              _Token('_', '=', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 9, 10),
              _Token('_', '(', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 10, 11),
-             _Token('v', '15', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 11, 14),
+             _Token('v', '15', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 11, 13),
+             _Token('_', ')', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 13, 14),
              _Token('_', ',', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 14, 15),
              _Token('a', 'c', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 15, 16),
              _Token('_', '=', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 16, 17),
              _Token('_', '(', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 17, 18),
-             _Token('v', '3', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 18, 20),
-             _Token('v', '4', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 20, 22),
+             _Token('v', '3', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 18, 19),
+             _Token('_', ',', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 19, 20),
+             _Token('v', '4', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 20, 21),
+             _Token('_', ')', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 21, 22),
              _Token('_', ',', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 22, 23),
              _Token('_', ' ', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 23, 24),
              _Token('a', 'd', 'ab(a=3, b=(15),c=(3,4), d=28),b', 0, 24, 25),
@@ -616,11 +619,50 @@ class Read_tuples(unittest.TestCase):
             tuple(make_objects(
                 _convdata,
                 Message,
+                [' Nt1 ( numbers = ( 1 ,a ) ) '])),
+            (Message(
+                message="'a' cannot be converted to int"
+                "\n0:22: Nt1 ( numbers = ( 1 ,a ) ) "
+                "\n     ----------------------^",
+                level=2),),
+            'attribute value has invalid type')
+
+    def test_invalid_attribute_type2(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
                 [' Nt1 ( numbers = ( 1 , a ) ) '])),
             (Message(
                 message="'a' cannot be converted to int"
                 "\n0:23: Nt1 ( numbers = ( 1 , a ) ) "
-                "\n     -----------------------^^^",
+                "\n     -----------------------^",
+                level=2),),
+            'attribute value has invalid type')
+
+    def test_invalid_attribute_type3(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt1 ( numbers = ( 1 ,  a ) ) '])),
+            (Message(
+                message="'a' cannot be converted to int"
+                "\n0:24: Nt1 ( numbers = ( 1 ,  a ) ) "
+                "\n     ------------------------^",
+                level=2),),
+            'attribute value has invalid type')
+
+    def test_invalid_attribute_type4(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt1 ( numbers = ( 1 a ) ) '])),
+            (Message(
+                message="'a' cannot be converted to int"
+                "\n0:21: Nt1 ( numbers = ( 1 a ) ) "
+                "\n     ---------------------^",
                 level=2),),
             'attribute value has invalid type')
 
@@ -668,6 +710,15 @@ class Read_tuples(unittest.TestCase):
                 [' Nt22 ( height = (13.5, 42)  width=(21,27) ) '])),
             (Nt2(height=(13.5, 42), width=(21, 27)),),
             'attribute has tuple value')
+
+    def test_two_attributes_tuple4(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt22 ( height = (13.5 42)  width=(21 27) ) '])),
+            (Nt2(height=(13.5, 42), width=(21, 27)),),
+            'attribute has tuple value, no commas')
 
 
 
