@@ -524,8 +524,10 @@ class Parse_params2(unittest.TestCase):
             expected, res, 'item with tuple attributes')
 
 from collections import namedtuple
-Nt1 = namedtuple('Nt1', 'numbers')
 Nt0 = namedtuple('Nt0', '')
+Nt1 = namedtuple('Nt1', 'numbers')
+Nt2 = namedtuple('Nt2', 'height width')
+Nt22 = namedtuple('Nt22', 'height width')
 Message = namedtuple('Message', 'message level', defaults=(2,))
 
 # parameters of object factory
@@ -535,7 +537,11 @@ _convdata = make_type_data(
      (Message, [(str,  False), (int,  False)]),
      (Nt0,     []),
      #          numbers
-     (Nt1,     [(int,  True)])])
+     (Nt1,     [(int,  True)]),
+     #          height           width
+     (Nt2,     [(float,  False), (float, False)]),
+     #          height           width
+     (Nt22,    [(float,  True), (float, True)])])
 
 class Read_tuples(unittest.TestCase):
 
@@ -617,6 +623,54 @@ class Read_tuples(unittest.TestCase):
                 "\n     -----------------------^^^",
                 level=2),),
             'attribute value has invalid type')
+
+    def test_two_attributes(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt2 ( height = 13.5, width=21 ) '])),
+            (Nt2(height=13.5, width=21),),
+            'attribute has tuple value')
+
+    def test_two_attributes2(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt2 ( height = 13.5  width=21 ) '])),
+            (Nt2(height=13.5, width=21),),
+            'attribute has tuple value')
+
+    def test_two_attributes_tuple(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt22 ( height = 13.5  width=21 ) '])),
+            (Nt2(height=(13.5,), width=(21,)),),
+            'attribute has tuple value')
+
+    def test_two_attributes_tuple2(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt22 ( height = (13.5, 42),  width=(21,27) ) '])),
+            (Nt2(height=(13.5, 42), width=(21, 27)),),
+            'attribute has tuple value')
+
+    def test_two_attributes_tuple3(self):
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt22 ( height = (13.5, 42)  width=(21,27) ) '])),
+            (Nt2(height=(13.5, 42), width=(21, 27)),),
+            'attribute has tuple value')
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

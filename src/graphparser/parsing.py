@@ -703,47 +703,46 @@ _Token = namedtuple(
 _tuple_parsing_states = {
     # element
     'e': re.compile(
-        '(?P<_e>\s+)|'
-        '(?P<ef>[A-Za-z]\w*)|'
-        '(?P<Fe>[^A-Za-z\s]+)'),
+            '(?P<_e>\s+)|'
+            '(?P<ef>[A-Za-z]\w*)|'
+            '(?P<Fe>[^A-Za-z\s]+)'),
     # after element
     'f': re.compile(
-        '(?P<_f>\s+)|'
-        '(?P<_e>,)|'
-        '(?P<_a>\()|'
-        '(?P<Ff>[^,\(])'),
+            '(?P<_f>\s+)|'
+            '(?P<_e>,)|'
+            '(?P<_a>\()|'
+            '(?P<Ff>[^,\(])'),
     # attribute
     'a': re.compile(
-        '(?P<_a>\s+)|'
-        '(?P<aq>[A-Za-z]\w*)|'
-        '(?P<_e>\))|'
-        '(?P<Fa>[^A-Za-z\s]+)'),
+            '(?P<_a>\s+)|'
+            '(?P<aq>[A-Za-z]\w*)|'
+            '(?P<_e>\))|'
+            '(?P<Fa>[^A-Za-z\s]+)'),
     # equal sign
     'q': re.compile(
-        '(?P<_q>\s+)|'
-        '(?P<_v>=)|'
-        '(?P<Fq>[^=\s]+)'),
+            '(?P<_q>\s+)|'
+            '(?P<_v>=)|'
+            '(?P<Fq>[^=\s]+)'),
     # value
     'v': re.compile(
-        '(?P<_v>\s+)|'
-        '(?P<vb>[\.\-+\w]+)|'
-        '(?P<v2b>(?P<br>"|\').*?(?P=br))|'
-        '(?P<_w>\()|'
-        '(?P<Fv>[^"\'\(\.\-+\w])'),
+            '(?P<_v>\s+)|'
+            '(?P<vb>[\.\-+\w]+)|'
+            '(?P<v2b>(?P<br>"|\').*?(?P=br))|'
+            '(?P<_w>\()|'
+            '(?P<Fv>[^"\'\(\.\-+\w])'),
     # after attribute
     'b': re.compile(
-        '(?P<_b>\s+)|'
-        '(?P<_a>,)|'
-        '(?P<_f>\))|'
-        '(?P<Fb>[^,\)]+)'),
+            '(?P<_a>\s*?(\s|,))|'
+            '(?P<_f>\s*?\))|'
+            '(?P<Fb>\s*[^,\)]+)'),
     # values
     'w': re.compile(
-        '(?P<_w>\s+)|'
-        '(?P<vw>[\.\-+\w]+)\s*,|'
-        '(?P<v2w>(?P<br>"|\').*?(?P=br))\s*,|'
-        '(?P<vb>[\.\-+\w]+)\s*\)|'
-        '(?P<v2b>(?P<qu>"|\').*?(?P=qu))\s*\)|'
-        '(?P<Fw>[^\.\-+\w\'"]+)')}
+            '(?P<_w>\s+)|'
+            '(?P<vw>[\.\-+\w]+)\s*?,|'
+            '(?P<v2w>(?P<qu>"|\').*?(?P=qu))\s*,|'
+            '(?P<vb>[\.\-+\w]+)\s*\)|'
+            '(?P<v2b>(?P<qu2>"|\').*?(?P=qu2))\s*\)|'
+            '(?P<Fw>[^\.\-+\w\'"]+)')}
 
 def _tokenize(text, states=_tuple_parsing_states, start_state='e'):
     """Creates tokens from text according to defined types and transitions.
