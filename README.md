@@ -82,7 +82,7 @@ No edge is created when a node starts/ends with underscore. First and last
 underscore of the node are not part of the ID (name). This gives the
 chance to place nodes in one text line which have no relation.
 Chains of attributes are attributes separated by a single comma or space. Again
-The first character of the attribute sequence is used to find the assodiated
+the first character of the attribute sequence is used to find the associated
 node/edge.
 
 # object parser
