@@ -549,7 +549,7 @@ def parse_graph(textlines):
     return chain.from_iterable(
         _pieces(entity_atts) for entity_atts in _scanlines(textlines))
 
-def parse2(strings):
+def parse(strings):
     """Parses multiline strings of graph data. More help is available at
     function 'parse_graph'.
 
