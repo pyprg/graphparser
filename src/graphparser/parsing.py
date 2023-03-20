@@ -549,36 +549,6 @@ def parse_graph(textlines):
     return chain.from_iterable(
         _pieces(entity_atts) for entity_atts in _scanlines(textlines))
 
-def parse(string):
-    """Parses a multiline string of graph data. More help is available at
-    function 'parse_graph'.
-
-    Parameters
-    ----------
-    string: str
-        multiline text to parse
-
-    Returns
-    -------
-    collections.abc.Iterable
-        * tuple (either 'node' or 'edge'), all values are strings:
-            * 'node':
-                * ('node',
-                  ID,
-                  tuple_of_adjacent_node_ids,
-                  dict_of_attributes)
-            * 'edge':
-                * ('edge',
-                  (ID_of_left_node, ID_of_right_node),
-                  dict_of_attributes)
-            * 'comment':
-                * str
-
-    Raises
-    ------
-    ValueError"""
-    return parse_graph(string.split('\n'))
-
 def parse2(strings):
     """Parses multiline strings of graph data. More help is available at
     function 'parse_graph'.

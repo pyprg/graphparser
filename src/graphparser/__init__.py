@@ -20,5 +20,5 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 from graphparser.parsing import (
-    parse, parse2, parse_graph, parse_positions, cuts,
+    parse2, parse_graph, parse_positions, cuts,
     make_type_data, make_objects)
