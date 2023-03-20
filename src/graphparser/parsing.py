@@ -550,8 +550,8 @@ def parse_graph(textlines):
         _pieces(entity_atts) for entity_atts in _scanlines(textlines))
 
 def parse(string):
-    """Parses a string of graph data. More help is available at function
-    'parse_graph'.
+    """Parses a multiline string of graph data. More help is available at
+    function 'parse_graph'.
 
     Parameters
     ----------
@@ -578,6 +578,36 @@ def parse(string):
     ------
     ValueError"""
     return parse_graph(string.split('\n'))
+
+def parse2(strings):
+    """Parses multiline strings of graph data. More help is available at
+    function 'parse_graph'.
+
+    Parameters
+    ----------
+    strings: iterable
+        str, multiline strings to parse
+
+    Returns
+    -------
+    collections.abc.Iterable
+        * tuple (either 'node' or 'edge'), all values are strings:
+            * 'node':
+                * ('node',
+                  ID,
+                  tuple_of_adjacent_node_ids,
+                  dict_of_attributes)
+            * 'edge':
+                * ('edge',
+                  (ID_of_left_node, ID_of_right_node),
+                  dict_of_attributes)
+            * 'comment':
+                * str
+
+    Raises
+    ------
+    ValueError"""
+    return parse_graph(l for s in strings for l in s.split('\n'))
 
 def parse_positions(textlines):
     """Extracts nodes and positions of their first characters from iterable
