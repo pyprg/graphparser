@@ -634,7 +634,8 @@ class Read_tuples(unittest.TestCase):
                 Message,
                 [' Nt1 ( numbers = ( 1 ,a ) ) '])),
             (Message(
-                message="'a' cannot be converted to int"
+                message="invalid literal for int() with base 10: 'a'"
+                "\n'a' cannot be converted to int"
                 "\n0:22: Nt1 ( numbers = ( 1 ,a ) ) "
                 "\n     ----------------------^",
                 level=2),),
@@ -647,7 +648,8 @@ class Read_tuples(unittest.TestCase):
                 Message,
                 [' Nt1 ( numbers = ( 1 , a ) ) '])),
             (Message(
-                message="'a' cannot be converted to int"
+                message="invalid literal for int() with base 10: 'a'"
+                "\n'a' cannot be converted to int"
                 "\n0:23: Nt1 ( numbers = ( 1 , a ) ) "
                 "\n     -----------------------^",
                 level=2),),
@@ -660,7 +662,8 @@ class Read_tuples(unittest.TestCase):
                 Message,
                 [' Nt1 ( numbers = ( 1 ,  a ) ) '])),
             (Message(
-                message="'a' cannot be converted to int"
+                message="invalid literal for int() with base 10: 'a'"
+                "\n'a' cannot be converted to int"
                 "\n0:24: Nt1 ( numbers = ( 1 ,  a ) ) "
                 "\n     ------------------------^",
                 level=2),),
@@ -673,7 +676,8 @@ class Read_tuples(unittest.TestCase):
                 Message,
                 [' Nt1 ( numbers = ( 1 a ) ) '])),
             (Message(
-                message="'a' cannot be converted to int"
+                message="invalid literal for int() with base 10: 'a'"
+                "\n'a' cannot be converted to int"
                 "\n0:21: Nt1 ( numbers = ( 1 a ) ) "
                 "\n     ---------------------^",
                 level=2),),

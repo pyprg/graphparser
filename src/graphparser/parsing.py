@@ -1087,9 +1087,10 @@ def _convert_values(cls_, value_tokens):
     for token in value_tokens:
         try:
             yield cls_(token.content)
-        except ValueError:
+        except ValueError as e:
             text = '\n'.join(
-                [f'\'{token.content}\' cannot be converted to {cls_.__name__}',
+                [str(e),
+                 f'\'{token.content}\' cannot be converted to {cls_.__name__}',
                  _get_position_hint(token)])
             raise ValueError(text)
 
