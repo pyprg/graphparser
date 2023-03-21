@@ -690,7 +690,7 @@ def cuts(schema, devs=_empty_tuple):
     return (cut(schema, **dev) for dev in devs)
 
 #
-# tuple-pull-parsing
+# named tuple parsing
 #
 
 import re
@@ -701,7 +701,7 @@ _Token = namedtuple(
     defaults=('', '', 0, 0, 1))
 
 _tuple_parsing_states = {
-    # element
+    # element, name of tuple
     'e': re.compile(
             '(?P<_e>\s+)|'
             '(?P<ef>\w+)|'
@@ -717,22 +717,23 @@ _tuple_parsing_states = {
             '(?P<_2e>\s(?!\())|'
             '(?P<_a>\s?\()|'
             '(?P<Ff>\s?[^,\(])'),
-    # attribute
+    # name of attribute
     'a': re.compile(
             '(?P<_a>\s+)|'
             '(?P<aq>[A-Za-z]\w*)|'
             '(?P<_f>\))|'
             '(?P<Fa>[^A-Za-z\)\s]+)'),
-    # equal sign
+    # equals sign or opening bracket
     'q': re.compile(
             '(?P<_q>\s+)|'
             '(?P<_v>=)|'
-            '(?P<Fq>[^=\s]+)'),
-    # value
+            '(?P<_w>\()|'
+            '(?P<Fq>[^=\s\(]+)'),
+    # value of attribute
     'v': re.compile(
             '(?P<_v>\s+)|'
             '(?P<vb>[\.\-+\w]+)|'
-            '(?P<v2b>(?P<br>"|\').*?(?P=br))|'
+            '(?P<v2b>(?P<qu>"|\').*?(?P=qu))|'
             '(?P<_w>\()|'
             '(?P<Fv>[^"\'\(\.\-+\w])'),
     # after attribute
@@ -741,13 +742,13 @@ _tuple_parsing_states = {
             '(?P<_a>\s*(\s|,))|'
             '(?P<_f>\s*\))|'
             '(?P<Fb>\s*[^,\)]+)'),
-    # values
+    # values of attribute (a tuple of values)
     'w': re.compile(
             '(?P<_w>\s+)|'
             '(?P<vx>[\.\-+\w]+)|'
             '(?P<v2x>(?P<qu>"|\').*?(?P=qu))|'
             '(?P<Fw>[^\.\-+\w\'\s"]+)'),
-    # after values
+    # after values of attribute
     'x': re.compile(
             # consume all white spaces up to one
             '(?P<_x>\s+(?!\S))|'
@@ -1003,7 +1004,7 @@ _transitions = ({
      'e':((_new_collection,), 'e'),
      'F':((_invalid_character_error,), '_'),
      'E':((_error, _stop_processing), 'E'),
-     'C':((), '_')},
+     'C':(_empty_tuple, '_')},
     ((_invalid_token_error,), '_')))
 
 _close = [_Token('C')]

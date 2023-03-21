@@ -783,6 +783,16 @@ class Read_tuples(unittest.TestCase):
             (Nt2(height=(13.5, 42), width=(21, 27)),),
             'attribute has tuple value, no commas')
 
+    def test_two_attributes_tuple5(self):
+        """no equal sign required if attribute value is a tuple"""
+        self.assertEqual(
+            tuple(make_objects(
+                _convdata,
+                Message,
+                [' Nt22( height(13.5 42)  width (21 27) ) '])),
+            (Nt2(height=(13.5, 42), width=(21, 27)),),
+            'attribute has tuple value, no commas, without equals')
+
     def test_two_elements(self):
         self.assertEqual(
             tuple(make_objects(
