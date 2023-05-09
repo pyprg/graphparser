@@ -565,8 +565,8 @@ class Read_tuples(unittest.TestCase):
         self.assertEqual(
             tuple(make_objects(_convdata, Message, ['Message'])),
             (Message(
-                message="<lambda>() missing 1 required positional argument: "
-                "'message'\n0:0:Message\n    ^^^^^^^",
+                message="Message.__new__() missing 1 required positional "
+                "argument: 'message'\n0:0:Message\n    ^^^^^^^",
                 level=2),),
             'missing attribute')
 
