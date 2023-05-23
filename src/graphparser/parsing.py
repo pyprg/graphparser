@@ -491,7 +491,7 @@ def parse_graph(textlines):
         A blank line may contain an arbitrary sequence of non-word-characters.
     Comments:
         A line is a comment if first character is '#'. When '#' is not first
-        the line is not a comment. Comments are ignored by the parser.
+        the line is not a comment.
     Node line:
         A node line defines nodes and adjacent nodes. The parser creates an
         edge between two nodes. A node is expressed as sequence of word
