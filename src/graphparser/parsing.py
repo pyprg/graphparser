@@ -24,7 +24,7 @@ from functools import reduce
 from itertools import chain
 
 ENTITY_ID = r'\b\w+\b' # word boundary, word characters, word boundary
-ATTRIBUTE_KEY_CLASS = r'\w' # word character
+ATTRIBUTE_KEY_CLASS = r'[.\w]' # word character
 ATTRIBUTE_KEY = f'{ATTRIBUTE_KEY_CLASS}+' # word characters
 KEY_VALUE_SEP = r'='
 # '\w' - alphanumeric characters and underscore
@@ -46,7 +46,7 @@ ENTITY = (
 ATTRIBUTES = (
     f'(({ATTRIBUTE_KEY}{KEY_VALUE_SEP}{ATTRIBUTE_VALUE}'
     f'[{ATTRIBUTE_SEP}]?)+)')
-ALL = f'{BLANK}|{COMMENT}|({ENTITY}|{ATTRIBUTES})'
+ALL = f'{BLANK}|{COMMENT}|{ATTRIBUTES}|{ENTITY}'
 
 # compiled regular expressions
 RE_ATTRIBUTE_SEP = re.compile(f'[{ATTRIBUTE_SEP}]')

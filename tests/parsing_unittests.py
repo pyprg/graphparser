@@ -7,9 +7,40 @@ Created on Sun Jan 30 14:02:59 2022
 import unittest
 import context
 from graphparser.parsing import (
-    parse, _tokenize, _Token, _Tokencollection, _Attributetokens,
+    _scanoneline, parse, _tokenize, _Token, _Tokencollection, _Attributetokens,
     _collect_tokens, _parse_params, parse_params, make_objects,
     make_type_data)
+
+class Scanoneline(unittest.TestCase):
+
+    def test_blank(self):
+        cat, s = _scanoneline('')
+        self.assertEqual(cat, 'b')
+        self.assertEqual(s, '')
+
+    def test_comment(self):
+        cat, s = _scanoneline('#')
+        self.assertEqual(cat, 'c')
+        self.assertEqual(s, '#')
+
+    def test_entity(self):
+        cat, s = _scanoneline('a')
+        self.assertEqual(cat, 'e')
+
+    def test_entity2(self):
+        cat, s = _scanoneline('a   a')
+        self.assertEqual(cat, 'e')
+        self.assertTrue(all(e[1]=='a' for e in s))
+
+    def test_attribute(self):
+        cat, s = _scanoneline('a=42')
+        self.assertEqual(cat, 'a')
+        self.assertEqual(list(s)[0][1], {'a': '42'})
+
+    def test_attribute2(self):
+        cat, s = _scanoneline('a.b=42')
+        self.assertEqual(cat, 'a')
+        self.assertEqual(list(s)[0][1], {'a.b': '42'})
 
 class Parse(unittest.TestCase):
 
