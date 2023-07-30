@@ -22,10 +22,11 @@ import re
 from operator import itemgetter
 from functools import reduce
 from itertools import chain
+from collections import namedtuple
 
 ENTITY_ID = r'\b\w+\b' # word boundary, word characters, word boundary
-ATTRIBUTE_KEY_CLASS = r'[.\w]' # word character
-ATTRIBUTE_KEY = f'{ATTRIBUTE_KEY_CLASS}+' # word characters
+ATTRIBUTE_KEY_CLASS = r'[.\w]' # dots and word character
+ATTRIBUTE_KEY = f'\w{ATTRIBUTE_KEY_CLASS}*' # word characters
 KEY_VALUE_SEP = r'='
 # '\w' - alphanumeric characters and underscore
 ATTRIBUTE_VALUE_CLASS = r'[+\-.\w]'# plus, minus, decimal point, word character
@@ -171,7 +172,7 @@ def _scanlines(lines):
         elif marker == 'a':
             atts.extend(data)
         elif marker == 'e':
-            if not entities is None:
+            if entities is not None:
                 msg = (
                     "unexpected entity (node), "
                     "lines with entities (nodes) must be "
@@ -693,8 +694,6 @@ def cuts(schema, devs=_empty_tuple):
 # named tuple parsing
 #
 
-import re
-from collections import namedtuple
 _Token = namedtuple(
     '_Token',
     'type content text row start end',
