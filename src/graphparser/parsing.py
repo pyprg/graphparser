@@ -714,6 +714,8 @@ _tuple_parsing_states = {
             # white space is separator between two elements
             # when not followed by an opening brace
             '(?P<_2e>\s(?!\())|'
+            # next element (in next row)
+            '(?P<ef>\w+)|'
             '(?P<_a>\s?\()|'
             '(?P<Ff>\s?[^,\(])'),
     # name of attribute

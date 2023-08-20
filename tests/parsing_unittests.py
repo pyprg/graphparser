@@ -558,6 +558,10 @@ class Parse_params2(unittest.TestCase):
         self.assertEqual(
             expected, res, 'item with tuple attributes')
 
+    def test_two_element_new_line(self):
+        res = list(parse_params('a\nb'.split('\n')))
+        self.assertEqual(res, [('a', {}), ('b', {})])
+
 from collections import namedtuple
 Nt0 = namedtuple('Nt0', '')
 Nt1 = namedtuple('Nt1', 'numbers')
