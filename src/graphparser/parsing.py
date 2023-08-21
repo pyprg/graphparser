@@ -741,6 +741,8 @@ _tuple_parsing_states = {
     'b': re.compile(
             # comma or white space separate attributes
             '(?P<_a>\s*(\s|,))|'
+            # name of attribute (next row)
+            '(?P<aq>[A-Za-z]\w*)|'
             '(?P<_f>\s*\))|'
             '(?P<Fb>\s*[^,\)]+)'),
     # values of attribute (a tuple of values)
@@ -758,6 +760,8 @@ _tuple_parsing_states = {
             # white space is separator between multiple attribute values
             # when not followed by a closing brace
             '(?P<_2w>\s(?!\)))|'
+            # next value on next row
+            '(?P<vx>[\.\-+\w]+)|'
             # closing brace -> end of attribute
             '(?P<_b>\s?\))|'
             '(?P<Fb>\s?[^,\)]+)')}

@@ -562,6 +562,14 @@ class Parse_params2(unittest.TestCase):
         res = list(parse_params('a\nb'.split('\n')))
         self.assertEqual(res, [('a', {}), ('b', {})])
 
+    def test_two_attributes_new_line(self):
+        res = list(parse_params('a(b=c\nd=e)'.split('\n')))
+        self.assertEqual(res, [('a', {'b':('c',), 'd':('e',)})])
+
+    def test_two_values_new_line(self):
+        res = list(parse_params('a(b(c\nd))'.split('\n')))
+        self.assertEqual(res, [('a', {'b':('c','d')})])
+
 from collections import namedtuple
 Nt0 = namedtuple('Nt0', '')
 Nt1 = namedtuple('Nt1', 'numbers')
